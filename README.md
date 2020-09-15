@@ -11,11 +11,12 @@ Example on the input format are available in the folder GGDInput of the project.
 
 The project uses the G-Core interpreter on Spark for querying the defined graph patterns. The G-Core project is implemented and maintained by the LDBC council in their repository disponible at https://ldbc.github.io/gcore-spark/. For more information on G-Core query language refer to the original project page.
 
-Some operators on the G-Core interpreter used for the GGDs were added: SELECT, UNION and OPTIONAL queries. In order to add these operators we changed the Spoofax language file as well as on the compilation class file of these new types of queries.
+Some operators on the G-Core interpreter used for the GGDs were added: SELECT, UNION and OPTIONAL queries. To add these operators we changed the Spoofax language file as well as on the compilation class file of these new types of queries.
 
 In order to validate the differential constraints in the GDDs we added a similarity join operator for Jaccard and Edit Similarity by using the methods from Dima (disponible at https://github.com/TsinghuaDatabaseGroup/Dima) and the Vernica Join method. This project needs the spark-2.4-Sim also available in the SmartDataLake repository which contains these similarity operators.
 
-The folder GGDInput contains examples of GGDs.
+This project is still under development.
+
 
 ## To build and run
 The GGDs were built as an extension to the G-Core project, the instructions to build and run this project are the same as in the G-Core interpreter.
