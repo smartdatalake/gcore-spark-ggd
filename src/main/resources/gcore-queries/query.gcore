@@ -1,0 +1,4 @@
+CONSTRUCT ()
+MATCH (n)->(m), (p) ON "social_graph" WHERE n.e = 1
+OPTIONAL (n:blah) WHERE n.e = 2
+OPTIONAL (m)

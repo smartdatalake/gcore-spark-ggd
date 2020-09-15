@@ -1,0 +1,555 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>nl.tue</groupId>
+    <!-- gcore-interpreter was made by nl.cwi group-->
+    <artifactId>gcore-interpreter-ggd</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <properties>
+        <scala.version>2.11</scala.version>
+        <!--<scala.version.extension>11</scala.version.extension>-->
+        <scala.version.extension>12</scala.version.extension>
+        <!--<akka>2.6.5</akka>-->
+        <akka>2.5.31</akka>
+        <akkaHttp>10.1.12</akkaHttp>
+        <!-- There is a newer version of Spark available than the one we are using, however, collect
+        and count on DataFrames throws an error with 2.2.1. For now we will use 2.2.0, as the
+        operations seem to work with this older version. -->
+        <spark.version>2.4.6</spark.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <!-- Spoofax Maven artifacts are hosted on Metaborg's artifact server
+    https://artifacts.metaborg.org. We add their repository to this POM which
+    enables us to add their project as a dependency. -->
+    <repositories>
+        <repository>
+            <id>snapshots-repo</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>metaborg-release-repo</id>
+            <url>https://artifacts.metaborg.org/content/repositories/releases/</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <!--<repository>
+            <id>metaborg-snapshot-repo</id>
+            <url>https://artifacts.metaborg.org/content/repositories/snapshots/</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>-->
+    </repositories>
+    <pluginRepositories>
+        <pluginRepository>
+            <id>metaborg-release-repo</id>
+            <url>https://artifacts.metaborg.org/content/repositories/releases/</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </pluginRepository>
+        <pluginRepository>
+            <id>metaborg-snapshot-repo</id>
+            <url>https://artifacts.metaborg.org/content/repositories/snapshots/</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </pluginRepository>
+    </pluginRepositories>
+
+    <dependencies>
+        <!-- Make Scala available in the project. -->
+        <dependency>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-library</artifactId>
+           <!-- <version>${scala.version}.${scala.version.extension}</version>-->
+            <version>${scala.version}.${scala.version.extension}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-reflect</artifactId>
+           <!-- <version>${scala.version}.${scala.version.extension}</version>-->
+            <version>${scala.version}.${scala.version.extension}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.scalatest</groupId>
+            <artifactId>scalatest_${scala.version}</artifactId> <!-- Requires scala 2.11.12 -->
+            <version>3.0.5</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.scalamock</groupId>
+            <artifactId>scalamock-scalatest-support_${scala.version}</artifactId>
+            <version>3.6.0</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- apache Jena -->
+        <dependency>
+            <groupId>org.apache.jena</groupId>
+            <artifactId>jena-core</artifactId>
+            <version>3.14.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.jena</groupId>
+            <artifactId>jena-arq</artifactId>
+            <version>3.14.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.jena</groupId>
+            <artifactId>jena-base</artifactId>
+            <version>3.14.0</version>
+        </dependency>
+
+        <!-- Spark dependencies. -->
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-core_${scala.version}</artifactId>
+            <version>${spark.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-sql_${scala.version}</artifactId>
+            <version>${spark.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-graphx_${scala.version}</artifactId>
+            <version>${spark.version}</version>
+        </dependency>
+        <dependency> <!-- catalyst import -> work with extensions -->
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-catalyst_${scala.version}</artifactId>
+            <version>${spark.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.module</groupId>
+            <artifactId>jackson-module-scala_2.11</artifactId>
+            <version>2.8.8</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.8.8</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>2.8.8</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-mllib_${scala.version}</artifactId>
+            <version>${spark.version}</version>
+        </dependency>
+        <!-- antlr4 for parser -->
+        <dependency>
+            <groupId>org.antlr</groupId>
+            <artifactId>antlr4</artifactId>
+            <version>4.7.2</version>
+        </dependency>
+
+
+        <!-- Spoofax parser dependecies. -->
+        <dependency>
+            <groupId>org.metaborg</groupId>
+            <artifactId>org.metaborg.spoofax.core</artifactId>
+            <version>2.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.1.2</version>
+        </dependency>
+
+        <!-- Enable Simple logging with SLF4J. -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>1.7.25</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Enable JSON parsing in the project. -->
+        <dependency>
+            <groupId>org.json4s</groupId>
+            <artifactId>json4s-jackson_${scala.version}</artifactId>
+            <!-- Spark Core internally uses version 3.2.11 of the json4s library. Any other version of this library will
+            result in errors when writing to parquet format. See Spark's dependency on json4s in:
+            https://mvnrepository.com/artifact/org.apache.spark/spark-core_2.11/2.2.1 -->
+            <!--<version>3.2.11</version>-->
+            <version>3.5.3</version>
+        </dependency>
+
+
+      <!-- metanome -->
+      <!--  <dependency>
+            <groupId>de.metanome</groupId>
+            <artifactId>algorithm_integration</artifactId>
+            <version>1.1-SNAPSHOT</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>de.metanome</groupId>
+            <artifactId>algorithm_helper</artifactId>
+            <version>1.1-SNAPSHOT</version>
+            <scope>compile</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>de.metanome</groupId>
+            <artifactId>backend</artifactId>
+            <version>1.1-SNAPSHOT</version>
+            <scope>compile</scope>
+        </dependency> -->
+
+        <!-- Akka libraries for Http requests -->
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-actor_${scala.version}</artifactId>
+            <version>${akka}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-http_${scala.version}</artifactId>
+            <version>${akkaHttp}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-stream_${scala.version}</artifactId>
+            <version>${akka}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-testkit_${scala.version}</artifactId>
+            <version>${akka}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-stream-testkit_${scala.version}</artifactId>
+            <version>${akka}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-http-testkit_${scala.version}</artifactId>
+            <version>${akkaHttp}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-http-core_${scala.version}</artifactId>
+            <version>${akkaHttp}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-http-spray-json_${scala.version}</artifactId>
+            <version>${akkaHttp}</version>
+        </dependency>
+        <dependency>
+            <groupId>de.heikoseeberger</groupId>
+            <artifactId>akka-http-json-play_${scala.version}</artifactId>
+            <version>0.7.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-actor-typed_${scala.version}</artifactId>
+            <version>2.5.21</version>
+            <!--<version>${akka}</version>-->
+        </dependency>
+
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-actor-testkit-typed_${scala.version}</artifactId>
+            <version>2.5.21</version>
+            <!--<version>${akka}</version>-->
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-http-xml_${scala.version}</artifactId>
+            <version>${akkaHttp}</version>
+        </dependency>
+
+        <!-- logback used for akka http libraries -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.2.3</version>
+            <scope>test</scope>
+        </dependency>
+
+
+        <!-- For random string generation. -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-text</artifactId>
+            <version>1.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jgrapht</groupId>
+            <artifactId>jgrapht-core</artifactId>
+            <version>1.2.0</version>
+        </dependency>
+        <!-- breeze for MLLib -->
+        <dependency>
+            <groupId>org.scalanlp</groupId>
+            <artifactId>breeze_${scala.version}</artifactId>
+            <version>1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jblas</groupId>
+            <artifactId>jblas</artifactId>
+            <version>1.2.4</version>
+        </dependency>
+
+        <!-- ScalaFX for graphical interface -->
+        <dependency>
+            <groupId>org.scalafx</groupId>
+            <artifactId>scalafx_2.11</artifactId>
+            <version>11-R16</version> <!--11-R16 -->
+        </dependency>
+      <!--<dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>12</version> 12 does not work with JDK8
+        </dependency>-->
+        <!-- calcite for jdbc -->
+       <!-- <dependency>
+            <groupId>org.apache.calcite.avatica</groupId>
+            <artifactId>avatica</artifactId>
+            <version>1.13.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.calcite.avatica</groupId>
+            <artifactId>avatica-server</artifactId>
+            <version>1.13.0</version>
+        </dependency> -->
+        <dependency>
+            <groupId>org.apache.hbase</groupId>
+            <artifactId>hbase-shaded-client</artifactId>
+            <version>1.1.2</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>12.0.1</version>
+        </dependency>
+
+
+    </dependencies>
+
+
+    <build>
+        <sourceDirectory>src/main/scala</sourceDirectory>
+        <testSourceDirectory>src/test/scala/queries</testSourceDirectory>
+        <plugins>
+            <!-- Compiler plugin for Scala source files. -->
+            <plugin>
+                <groupId>net.alchim31.maven</groupId>
+                <artifactId>scala-maven-plugin</artifactId>
+                <version>3.3.2</version>
+                <!--<version>4.4.0</version> -->
+                <configuration>
+                    <!-- Compiler plugin requires scala 2.11.0, but everything else depends on
+                    2.11.12. Since they are backwards compatible, we require only compatibility
+                    with 2.11 -->
+                    <scalaCompatVersion>${scala.version}</scalaCompatVersion>
+                    <scalaVersion>${scala.version}</scalaVersion>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>scala-compile-first</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                            <goal>compile</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>scala-test-compile</id>
+                        <phase>process-test-resources</phase>
+                        <goals>
+                            <goal>testCompile</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- javadoc plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Plugin to run tests with mvn test -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.22.1</version>
+            </plugin>
+
+
+            <!-- Scalatest was the plugin used initially to run test.
+                 Scalatest wasn't working with Jenkins so we decided to change it for Maven Surefire,
+                 but in the end Jenkins was still not working. Finally, we kept Maven Surefire and
+                 disabled Jenkins support, so tests will be executed locally.
+            -->
+            <!--
+            <plugin>
+                <groupId>org.scalatest</groupId>
+                <artifactId>scalatest-maven-plugin</artifactId>
+                <version>2.0.0</version>
+                <configuration>
+                    <reportsDirectory>${project.build.directory}/scalatest-reports</reportsDirectory>
+                    <junitxml>.</junitxml>
+                    <filereports>WDF TestSuite.txt</filereports>
+                    <stdout>W</stdout>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>test</id>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            -->
+
+            <!-- This plugin adds all dependencies to JAR file during 'package'
+            command. -->
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>2.5.3</version>
+                <configuration>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                    <archive>
+                       <!-- <manifest>
+                            <mainClass>gui.GcoreGUI</mainClass> <mainClass>GcoreRunner</mainClass>
+                        </manifest>-->
+                        <manifest>
+                            <mainClass>ggd.ERRunner</mainClass>
+                        </manifest>
+                        <!--<manifest>
+                            <mainClass>testPlayground</mainClass>
+                        </manifest> -->
+                    </archive>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- akka plugin for their configuration files -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>1.5</version>
+                <executions>
+                    <execution>
+                        <id>shade-my-jar</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                                <filters>
+                                    <filter>
+                                        <artifact>*:*</artifact>
+                                        <excludes>
+                                            <exclude>META-INF/*.SF</exclude>
+                                            <exclude>META-INF/*.DSA</exclude>
+                                            <exclude>META-INF/*.RSA</exclude>
+                                        </excludes>
+                                    </filter>
+                                </filters>
+                            <shadedArtifactAttached>true</shadedArtifactAttached>
+                            <shadedClassifierName>allinone</shadedClassifierName>
+                            <artifactSet>
+                                <includes>
+                                    <include>*:*</include>
+                                </includes>
+                            </artifactSet>
+                            <transformers>
+                                <transformer
+                                        implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>reference.conf</resource>
+                                </transformer>
+                                <transformer
+                                        implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <manifestEntries>
+                                        <Main-Class>application.WebServer</Main-Class>
+                                    </manifestEntries>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.8.0</version>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
