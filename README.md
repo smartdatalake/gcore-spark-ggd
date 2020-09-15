@@ -1,6 +1,6 @@
 # Graph Generating Dependencies using G-CORE interpreter on Spark
 
-The Graph Generatign Dependencies is a dependency proposed for property graphs inspired by the tuple- and equality-generating dependencies for relational data.
+The Graph Generating Dependencies is a new class of graph dependencies proposed for property graphs inspired by the tuple- and equality-generating dependencies for relational data.
 More information on the Graph Generating Dependencies and its syntax refer to the paper at: 
 
 Shimomura, Larissa C., George Fletcher, and Nikolay Yakovets. "GGDs: Graph Generating Dependencies." arXiv preprint arXiv:2004.10247 (2020).
@@ -13,9 +13,9 @@ The project uses the G-Core interpreter on Spark for querying the defined graph 
 
 Some operators on the G-Core interpreter used for the GGDs were added: SELECT, UNION and OPTIONAL queries. In order to add these operators we changed the Spoofax language file as well as on the compilation class file of these new types of queries.
 
-In order to validate the differential constraints in the GDDs we added a similarity join operator for Jaccard and Edit Similarity by using the methods from Dima (disponible at https://github.com/TsinghuaDatabaseGroup/Dima). 
-To add the similarity join operators we modified SparkSQL package to add the operators in the parsing, analyzed and physical plans of Spark. The modified spark source code is available in the org.apacha.sql folder of the project.
-The methods from Dima were merged into our project, we added comments to the source code from Dima clarifying that it belongs to the Dima project. Dima source code we merged is also in the org.apache.spark.sql folder of the project. We made very few modifications on the source code in order to integrate to our project. We also include the NOTICE file from Dima and Spark in our repository, following their License rules. 
+In order to validate the differential constraints in the GDDs we added a similarity join operator for Jaccard and Edit Similarity by using the methods from Dima (disponible at https://github.com/TsinghuaDatabaseGroup/Dima) and the Vernica Join method. This project needs the spark-2.4-Sim also available in the SmartDataLake repository which contains these similarity operators.
+
+The folder GGDInput contains examples of GGDs.
 
 ## To build and run
 The GGDs were built as an extension to the G-Core project, the instructions to build and run this project are the same as in the G-Core interpreter.
@@ -50,6 +50,16 @@ spark-submit \
     --master local[2] \
     --conf "spark.driver.extraClassPath=/path_to/guice-4.0.jar" \
     target/gcore-interpreter-1.0-SNAPSHOT-jar-with-dependencies.jar
+```
+
+## To run REST API
+```bash
+mvn package -DskipTests
+spark-submit \
+    --class application.WebServer \
+    --master local[2] \
+    --conf "spark.driver.extraClassPath=/path_to/guice-4.0.jar" \
+    target/gcore-interpreter-1.0-SNAPSHOT-allinone.jar port_number /dataset/folder/path
 ```
 
 ## To run tests
