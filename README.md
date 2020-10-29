@@ -70,5 +70,5 @@ mvn test
 ## Manual
 
 For more information on how to use this component, refer to the sHINERManual.pdf document in the repository.
-This document contain more information about the component architecture, input formats, how to use the command-line application and the REST API.
+This document contains more information about the component architecture, input formats, how to use the command-line application and the REST API.
 The project is under development, as the project is updated the manual will describe the changes made to the project.
