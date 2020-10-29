@@ -1,0 +1,75 @@
+{
+	"sourceGP": [
+  {
+    "name": "Abt",
+    "vertices": [
+      {
+        "label": "ProductAbt",
+        "variable": "VS"
+      }],
+    "edges": []
+  },
+  {
+    "name": "Buy",
+    "vertices": [
+      {
+        "label": "ProductBuy",
+        "variable": "zc"
+      },
+            {
+        "label": "ManufacturerBuy",
+        "variable": "lV"
+      }
+    ],
+    "edges": [{
+        "label": "producedbyBuy",
+        "variable": "WAo",
+        "fromVariable": "zc",
+        "toVariable": "lV"
+      } ]
+  }
+],
+	"sourceCons": [{
+	"distance": "edit",
+	"var1": "lV",
+	"var2": "VS",
+	"attr1": "name",
+	"attr2": "name",
+	"threshold": 20.0,
+	"operator": "<="
+}],
+	"targetGP": [
+  {
+    "name": "abtBuy",
+    "vertices": [
+      {
+        "label": "ProductAbt",
+        "variable": "VS"
+      },
+      {
+        "label": "ProductBuy",
+        "variable": "zc"
+      },
+                  {
+        "label": "ManufacturerBuy",
+        "variable": "lV"
+      }
+    ],
+    "edges": [
+    	{
+        "label": "producedbyBuy",
+        "variable": "WAo",
+        "fromVariable": "zc",
+        "toVariable": "lV"
+      },
+      {
+        "label": "producedBy_ggd3",
+        "variable": "AxAh",
+        "fromVariable": "VS",
+        "toVariable": "lV"
+      }
+    ]
+  }
+],
+	"targetCons": []
+}

@@ -1,0 +1,60 @@
+{
+	"sourceGP": [
+  {
+    "name": "Google",
+    "vertices": [
+      {
+        "label": "ProductGoogle",
+        "variable": "VS"
+      },
+      {
+        "label": "ManufacturerGoogle",
+        "variable": "lV"
+      }
+    ],
+    "edges": [
+      {
+        "label": "producedbyGoogle",
+        "variable": "WaO",
+        "fromVariable": "VS",
+        "toVariable": "lV"
+      }
+    ]
+  }
+],
+	"sourceCons": [],
+	"targetGP": [
+  {
+    "name": "AmazonGoogle",
+    "vertices": [
+      {
+        "label": "ProductGoogle",
+        "variable": "VS"
+      },
+      {
+        "label": "ManufacturerGoogle",
+        "variable": "lV"
+      },
+      {
+              "label": "ExtraVertex",
+      "variable": "xy"
+      }
+    ],
+    "edges": [
+      {
+        "label": "producedbyGoogle",
+        "variable": "WaO",
+        "fromVariable": "VS",
+        "toVariable": "lV"
+      },
+      {
+        "label":"sameAs_ggd8",
+        "variable": "yA0",
+        "fromVariable": "xy",
+        "toVariable": "VS"
+      }
+    ]
+  }
+],
+	"targetCons": []
+}

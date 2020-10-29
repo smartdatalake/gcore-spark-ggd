@@ -1,0 +1,50 @@
+{
+	"sourceGP": [
+  {
+    "name": "Amazon",
+    "vertices": [
+      {
+        "label": "ProductAmazon",
+        "variable": "VS"
+      }
+    ],
+    "edges": [ ]
+  },
+  {
+    "name": "Google",
+    "vertices": [
+      {
+        "label": "ProductGoogle",
+        "variable": "zc"
+      }
+    ],
+    "edges": [
+    ]
+  }
+],
+	"sourceCons": [],
+	"targetGP": [
+  {
+    "name": "AmazonGoogle",
+    "vertices": [
+      {
+        "label": "ProductAmazon",
+        "variable": "VS"
+      },
+      {
+        "label": "ProductGoogle",
+        "variable": "zc"
+      }
+    ],
+    "edges": [
+      {
+        "label": "sameAs_ggd3",
+        "variable": "AxAh",
+        "fromVariable": "VS",
+        "toVariable": "zc"
+      }
+    ]
+  }
+],
+	"targetCons": []
+}

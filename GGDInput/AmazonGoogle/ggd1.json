@@ -1,0 +1,91 @@
+{
+	"sourceGP": [
+  {
+    "name": "Amazon",
+    "vertices": [
+      {
+        "label": "ProductAmazon",
+        "variable": "VS"
+      },
+      {
+        "label": "ManufacturerAmazon",
+        "variable": "lV"
+      }
+    ],
+    "edges": [
+      {
+        "label": "producedbyAmazon",
+        "variable": "WaO",
+        "fromVariable": "VS",
+        "toVariable": "lV"
+      }
+    ]
+  },
+  {
+    "name": "Google",
+    "vertices": [
+      {
+        "label": "ProductGoogle",
+        "variable": "zc"
+      },
+      {
+        "label": "ManufacturerGoogle",
+        "variable": "DX"
+      }
+    ],
+    "edges": [
+      {
+        "label": "producedbyGoogle",
+        "variable": "Ymc",
+        "fromVariable": "zc",
+        "toVariable": "DX"
+      }
+    ]
+  }
+],
+	"sourceCons": [],
+	"targetGP": [
+  {
+    "name": "AmazonGoogle",
+    "vertices": [
+      {
+        "label": "ProductAmazon",
+        "variable": "VS"
+      },
+      {
+        "label": "ManufacturerAmazon",
+        "variable": "lV"
+      },
+      {
+        "label": "ProductGoogle",
+        "variable": "zc"
+      },
+      {
+        "label": "ManufacturerGoogle",
+        "variable": "DX"
+      }
+    ],
+    "edges": [
+      {
+        "label": "producedbyAmazon",
+        "variable": "WaO",
+        "fromVariable": "VS",
+        "toVariable": "lV"
+      },
+      {
+        "label": "producedbyGoogle",
+        "variable": "Ymc",
+        "fromVariable": "zc",
+        "toVariable": "DX"
+      },
+      {
+        "label": "sameAs_ggd1",
+        "variable": "AxAh",
+        "fromVariable": "VS",
+        "toVariable": "zc"
+      }
+    ]
+  }
+],
+	"targetCons": []
+}

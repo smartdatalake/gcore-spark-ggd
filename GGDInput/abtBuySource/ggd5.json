@@ -1,0 +1,38 @@
+{
+	"sourceGP": [
+  {
+    "name": "Abt",
+    "vertices": [
+      {
+        "label": "ProductAbt",
+        "variable": "VS"
+      }],
+    "edges": []
+  }
+],
+	"sourceCons": [],
+	"targetGP": [
+  {
+    "name": "abtBuy",
+    "vertices": [
+      {
+        "label": "ProductAbt",
+        "variable": "VS"
+      },
+      {
+      "label": "ManufacturerAbt",
+      "variable": "xy"
+  }
+    ],
+    "edges": [
+      {
+        "label": "producedBy_ggd6",
+        "variable": "AxAh",
+        "fromVariable": "VS",
+        "toVariable": "xy"
+      }
+    ]
+  }
+],
+	"targetCons": []
+}

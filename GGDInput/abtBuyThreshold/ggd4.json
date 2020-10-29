@@ -1,0 +1,56 @@
+{
+  "sourceGP": [
+  {
+    "name": "Abt",
+    "vertices": [
+      {
+        "label": "ProductAbt",
+        "variable": "VS"
+      }],
+    "edges": []
+  },
+  {
+    "name": "Buy",
+    "vertices": [
+      {
+        "label": "ProductBuy",
+        "variable": "zc"
+      }
+    ],
+    "edges": [ ]
+  }
+],
+  "sourceCons": [{
+  "distance": "edit",
+  "var1": "VS",
+  "var2": "zc",
+  "attr1": "name",
+  "attr2": "name",
+  "threshold": 20.0,
+  "operator": "<="
+}],
+  "targetGP": [
+  {
+    "name": "abtBuy",
+    "vertices": [
+      {
+        "label": "ProductAbt",
+        "variable": "VS"
+      },
+      {
+        "label": "ProductBuy",
+        "variable": "zc"
+      }
+    ],
+    "edges": [
+      {
+        "label": "sameAs_ggd4",
+        "variable": "AxAh",
+        "fromVariable": "VS",
+        "toVariable": "zc"
+      }
+    ]
+  }
+],
+  "targetCons": []
+}

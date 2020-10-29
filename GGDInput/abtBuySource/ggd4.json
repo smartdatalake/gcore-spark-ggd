@@ -1,0 +1,39 @@
+{
+	"sourceGP": [
+  {
+    "name": "Buy",
+    "vertices": [
+            {
+        "label": "ManufacturerBuy",
+        "variable": "lV"
+      }
+    ],
+    "edges": []
+  }
+],
+	"sourceCons": [],
+	"targetGP": [
+  {
+    "name": "abtBuy",
+    "vertices": [
+      {
+        "label": "ManufacturerBuy",
+        "variable": "lV"
+      },
+      {
+      "label": "ManufacturerAbt",
+      "variable": "xy"
+  }
+    ],
+    "edges": [
+      {
+        "label": "sameAs_ggd5",
+        "variable": "AxAh",
+        "fromVariable": "lV",
+        "toVariable": "xy"
+      }
+    ]
+  }
+],
+	"targetCons": []
+}
