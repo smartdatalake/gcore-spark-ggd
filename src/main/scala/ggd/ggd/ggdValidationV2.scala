@@ -350,14 +350,16 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
     var result: DataFrame = gcoreRunner.sparkSession.emptyDataFrame
     if(distanceMeasure == "jaccardsimilarity"){
       if(df1_1.count() < 10000){
-        result = df1_1.SimJoin(df2_2, df1_1(col1), df2_2(col2), distanceMeasure, threshold, "<").dropDuplicates()//.cache()
+        //result = df1_1.SimJoin(df2_2, df1_1(col1), df2_2(col2), distanceMeasure, threshold, "<").dropDuplicates()//.cache()
+        return null
       }else{
         val vernica = new VernicaJoinAthena(threshold, gcoreRunner.sparkSession)
         result = vernica.vernicaJoin(df1_1.map(x => (x.getAs(id1).toString, x.getAs(col1).toString)).rdd,
           df2_2.map(x => (x.getAs(id2).toString, x.getAs(col2).toString)).rdd)
       }
     }else if(distanceMeasure == "editsimilarity"){
-      result = df1_1.SimJoin(df2_2, df1_1(col1), df2_2(col2), distanceMeasure, threshold, "<").dropDuplicates()//.cache()
+      //result = df1_1.SimJoin(df2_2, df1_1(col1), df2_2(col2), distanceMeasure, threshold, "<").dropDuplicates()//.cache()
+      return null
     }
     //val vernica = new VernicaJoinAthena(threshold, gcoreRunner.sparkSession)
     //val result = vernica.vernicaJoin(df1_1.map(x => (x.getAs(id1).toString, x.getAs(col1).toString)).rdd,
