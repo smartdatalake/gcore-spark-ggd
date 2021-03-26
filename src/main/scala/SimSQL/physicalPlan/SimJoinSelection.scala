@@ -20,7 +20,7 @@ object SimJoinSelection extends Strategy with PredicateHelper {
           logInfo(s"JaccardSimilarityJoin")
           JaccardSimilarityJoinDima(left_keys, right_keys, Similarity, planLater(left), planLater(right), operator, threshold) :: Nil
           //JaccardSimilarityJoinExec(left_keys, right_keys, Similarity, planLater(left), planLater(right), operator, threshold) :: Nil
-          //VernicaJoin(left_keys, right_keys, Similarity, planLater(left), planLater(right), operator, threshold).asInstanceOf[SparkPlan] :: Nil
+          //VernicaJoin(left_keys, right_keys, Similarity, planLater(left), planLater(right), operator, threshold) :: Nil
         }
         case "SelfJaccardSimilarity" => {
           logInfo(s"SelfJaccardSimilarityJoin")
@@ -28,12 +28,12 @@ object SimJoinSelection extends Strategy with PredicateHelper {
           JaccardSimilarityJoinDima(left_keys, right_keys, Similarity, planLater(left), planLater(right), operator, threshold) :: Nil
           //left.toString()
           //JaccardSimilarityJoinExec(left_keys, right_keys, Similarity, planLater(left), planLater(left), operator, threshold) :: Nil
-          //VernicaJoin(left_keys, right_keys, Similarity, planLater(left), planLater(left), operator, threshold).asInstanceOf[SparkPlan] :: Nil
+          //VernicaJoin(left_keys, right_keys, Similarity, planLater(left), planLater(left), operator, threshold) :: Nil
         }
         case "EditSimilarity" => {
           logInfo(msg = s"Edit Distance Similarity")
           //EditSimilarityJoinExec(left_keys, right_keys, Similarity, planLater(left), planLater(right), operator, threshold) :: Nil
-          EditDistanceSimilarityJoinDima(left_keys, right_keys, Similarity, planLater(left), planLater(right), operator, threshold).asInstanceOf[SparkPlan] :: Nil
+          EditDistanceSimilarityJoinDima(left_keys, right_keys, Similarity, planLater(left), planLater(right), operator, threshold) :: Nil
         }
         case _ => {
           logError(s"No similarity join operator for the similarity function" + measure)

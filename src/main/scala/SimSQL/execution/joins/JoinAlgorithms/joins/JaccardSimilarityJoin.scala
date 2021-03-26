@@ -658,8 +658,11 @@ case class JaccardSimilarityJoinDima(leftKeys: Expression,
     logDebug(s"execute JaccardSelfSimilarityJoin")
     logDebug(s"LEFT: ${left}")
     logDebug(s"RIGHT: ${right}")
+    if(threshold > 1) {
+      logError(s"Threshold value is invalid for JaccardSimilarity, input a threshold value <= 1")
+    }
 
-    val left_rdd = left.execute()/*.filter(row =>{
+    val left_rdd = left.execute().filter(row =>{
       try{
         val key = BindReferences.bindReference(leftKeys, left.output)
           .eval(row)
@@ -669,7 +672,7 @@ case class JaccardSimilarityJoinDima(leftKeys: Expression,
       } catch{
         case e: NullPointerException => false
       }
-    })*/.map(row =>
+    }).map(row =>
     {
       //try{
         val key = BindReferences
@@ -683,7 +686,7 @@ case class JaccardSimilarityJoinDima(leftKeys: Expression,
       }*/
     })
 
-    val right_rdd = right.execute()/*.filter(row =>{
+    val right_rdd = right.execute().filter(row =>{
       try{
         val key = BindReferences
           .bindReference(rightKeys, right.output)
@@ -694,7 +697,7 @@ case class JaccardSimilarityJoinDima(leftKeys: Expression,
       } catch{
         case e: NullPointerException => false
       }
-    })*/.map(row =>
+    }).map(row =>
     {
      // try{
         val key = BindReferences

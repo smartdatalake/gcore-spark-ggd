@@ -56,7 +56,57 @@ case class VernicaJoin(leftKeys: Expression,
 
   override protected def doExecute(): RDD[InternalRow] = {
 
-    val left_rdd = left.execute().map(row =>
+    val left_rdd = left.execute().filter(row =>{
+      try{
+        val key = BindReferences.bindReference(leftKeys, left.output)
+          .eval(row)
+          .asInstanceOf[org.apache.spark.unsafe.types.UTF8String]
+          .toString
+        true
+      } catch{
+        case e: NullPointerException => false
+      }
+    }).map(row =>
+    {
+      //try{
+      val key = BindReferences
+        .bindReference(leftKeys, left.output)
+        .eval(row)
+        .asInstanceOf[org.apache.spark.unsafe.types.UTF8String]
+        .toString
+      (key, row.copy())//(Some(key), row.copy())
+      /* }catch{
+         case e: NullPointerException => (None, row.copy())
+       }*/
+    })
+
+    val right_rdd = right.execute().filter(row =>{
+      try{
+        val key = BindReferences
+          .bindReference(rightKeys, right.output)
+          .eval(row)
+          .asInstanceOf[org.apache.spark.unsafe.types.UTF8String]
+          .toString
+        true
+      } catch{
+        case e: NullPointerException => false
+      }
+    }).map(row =>
+    {
+      // try{
+      val key = BindReferences
+        .bindReference(rightKeys, right.output)
+        .eval(row)
+        .asInstanceOf[org.apache.spark.unsafe.types.UTF8String]
+        .toString
+      (key, row.copy())//(Some(key), row.copy())
+      /* }catch{
+         case e: NullPointerException => (None, row.copy())
+       }*/
+
+    })
+
+    /*val left_rdd = left.execute().map(row =>
     {
       val key = BindReferences
         .bindReference(leftKeys, left.output)
@@ -75,7 +125,7 @@ case class VernicaJoin(leftKeys: Expression,
         .toString
       if(key == null) print(key)
       (key, row.copy())
-    })
+    })*/
     //rdd[(InternalRow, String)]
 
     val in_RDD1 = left_rdd.map(doc => {

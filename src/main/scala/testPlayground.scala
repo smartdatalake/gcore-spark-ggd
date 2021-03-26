@@ -1,7 +1,9 @@
 import java.io.File
 import java.nio.file.Paths
 
+import SimSQL.SimilarityAPI
 import SimSQL.logicalPlan.{ResolveSimJoin, SimJoinOptimizer}
+import ggd.Runner
 //import Joins.VernicaJoinAthena
 import compiler.{CompileContext, Compiler, GcoreCompiler}
 import org.apache.log4j.{Level, Logger}
@@ -11,13 +13,14 @@ import schema.EntitySchema.LabelRestrictionMap
 import schema.{PathPropertyGraph, Table}
 import spark.{GraphSource, SparkCatalog, SparkGraph}
 import SimSQL.physicalPlan.SimJoinSelection
+import org.apache.spark.sql.functions._
 //import org.apache.spark.sql.catalyst.optimizer.SimJoinOptimizer
 
 import scala.collection.mutable.ArrayBuffer
 
 object testPlayground {
 
-  type ExtensionsBuilder = SparkSessionExtensions => Unit
+  /*type ExtensionsBuilder = SparkSessionExtensions => Unit
 
   def create(builder: ExtensionsBuilder): ExtensionsBuilder = builder
 
@@ -44,7 +47,7 @@ object testPlayground {
     //sparkSession.experimental.extraStrategies
     //sparkSession.experimental.extraOptimizations
     GcoreRunner(sparkSession, compiler, catalog)
-  }
+  }*/
 
   def sameRefsIds(frame1: DataFrame, frame2: DataFrame): Array[String] = {
     val cols1 = frame1.columns.map(_.split('$').apply(0)).distinct
@@ -128,22 +131,31 @@ object testPlayground {
     Logger.getLogger("org").setLevel(Level.OFF)
     Logger.getLogger("akka").setLevel(Level.OFF)
 
-    val gcoreRunner = newRunner
+    val gcoreRunner = Runner.newRunner
 
     val table1 = gcoreRunner.sparkSession.read.option("header","true")
       .option("inferschema", true)
       .csv("/benchmarkDatasets/AmazonGoogle/GoogleProducts.csv")
+      //.filter(col("description").isNull)
     val table2 = gcoreRunner.sparkSession.read.option("header","true")
       .option("inferschema", true)
       .csv("/benchmarkDatasets/AmazonGoogle/Amazon.csv")
+      //.filter(col("description").isNull)
 
     table1.show(10)
     table2.show(10)
 
-    table1.createOrReplaceTempView("table1")
-    table2.createOrReplaceTempView("table2")
+    val simjoiApi = new SimilarityAPI(gcoreRunner)
 
-    val queryApi = gcoreRunner.sparkSession.sql("SELECT * FROM table1 SIMILARITY JOIN table2 USING JACCARDSIMILARITY(table1.name, table2.title) < 3")
+    //table1.createOrReplaceTempView("table1")
+    //table2.createOrReplaceTempView("table2")
+
+    //Similarity Joins filter null values before executing the similarity join algorithm, it desconsiders these rows in the final result
+
+    //val queryApi = gcoreRunner.sparkSession.sql("SELECT * FROM table1 SIMILARITY JOIN table2 USING EDITSIMILARITY(table1.name, table2.title) < 3")
+    //val queryApi = gcoreRunner.sparkSession.sql("SELECT * FROM table1 SIMILARITY JOIN table2 USING JACCARDSIMILARITY(table1.description, table2.description) < 0.8")
+    val queryApi = simjoiApi.SimJoin(table1, table2, "name", "title", "editsimilarity", 3, "<")
+
     queryApi.explain(true)
 
     println("size:" + queryApi.count())
