@@ -1,16 +1,14 @@
-package ggd.ggd
+package ggd
 
-import java.io.{FileWriter, PrintWriter, Writer}
+import java.io.{FileWriter, Writer}
 import java.nio.file.Path
 
 import org.json4s.DefaultFormats
 import org.json4s.jackson.JsonMethods.parse
 import org.json4s.jackson.Serialization.write
 
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
-import scala.reflect.io.File
 
 class GraphGenDep {
   var name: String = "-"

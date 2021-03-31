@@ -1,6 +1,7 @@
 package ggd.utils
 
-import ggd.ggd.{EdgesPattern, GraphGenDep, GraphPattern, VerticesPattern, gcoreConstructQuery, gcoreQuery}
+import ggd.{EdgesPattern, GraphPattern, VerticesPattern, gcoreQuery}
+import ggd.{EdgesPattern, VerticesPattern, gcoreConstructQuery, gcoreQuery}
 import org.apache.spark.sql.Row
 
 import scala.collection.mutable.ArrayBuffer
@@ -103,7 +104,7 @@ object GGDtoGCoreParser {
         edges += e
       }
     }
-    return GraphPattern(pattern.name, vertices.toList, edges.toList)
+    return ggd.GraphPattern(pattern.name, vertices.toList, edges.toList)
   }
 
   def partialPatternRow(patternOrig: GraphPattern, commonVar: List[String], row: Row): matchOptional ={

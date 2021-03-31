@@ -1,4 +1,4 @@
-package ggd.ggd
+package ggd
 
 import java.io.{FileWriter, Writer}
 import java.nio.file.{Path, Paths}

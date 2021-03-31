@@ -3,11 +3,11 @@ package ggd
 import java.io.File
 import java.nio.file.Paths
 
-import ggd.{GGDSet, GraphGenDep, ViolatedV2, generatedInfo,  ggdValidationV2}
 import org.apache.spark.sql.DataFrame
-import schema.EntitySchema.LabelRestrictionMap
-import schema.{EntitySchema, PathPropertyGraph, SchemaMap}
-import spark.{GraphJsonConfig, GraphSource, ParquetGraphSource, SaveGraph, SparkCatalog, SparkGraph}
+import schema.PathPropertyGraph
+import spark._
+import ggd._
+import ggd.utils._
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -16,6 +16,7 @@ class ERCommand(gcoreRunner: GcoreRunner){
   var ggds = new GGDSet()
   val ggdValV2 : ggdValidationV2 = new ggdValidationV2(gcoreRunner)
   var resultInfo: ArrayBuffer[generatedInfo] = null
+  val loadP = new loadProteus(gcoreRunner)
 
   def getGcore(): GcoreRunner = {
     return gcoreRunner
@@ -24,7 +25,7 @@ class ERCommand(gcoreRunner: GcoreRunner){
   def readGGDs(path: String): Unit = {
     println("Read GGDs!!")
     ggds.loadGGDs(path)
-  }
+  } //- implement method to read form ggd json not from file
 
   def setGGDs(set: Seq[GraphGenDep]): Unit = {
     ggds.AllGGDs = set
@@ -35,9 +36,31 @@ class ERCommand(gcoreRunner: GcoreRunner){
     return df
   }
 
+  def runSelectQueryProteus(query: String): DataFrame = {
+    val df = gcoreRunner.compiler.compilerProteus(query, loadP.con).asInstanceOf[DataFrame]
+    df
+  }
+
   def runConstructQuery(query: String): PathPropertyGraph = {
     val graph = gcoreRunner.compiler.compilePropertyGraph(query).asInstanceOf[PathPropertyGraph]
     return graph
+  }
+
+  def runConstructQueryProteus(query: String) : PathPropertyGraph = {
+    val graph = gcoreRunner.compiler.compilerProteus(query, loadP.con).asInstanceOf[PathPropertyGraph]
+    return graph
+  }
+
+  def openConnectionProteus(): Unit = {
+    loadP.openConnection()
+  }
+
+  def closeConnectionProteus(): Unit = {
+    loadP.closeConnection()
+  }
+
+  def loadGraphProteus(configPath: String): Unit = {
+    loadP.loadSparkJDBC(configPath)
   }
 
   def graphSchemaList(names : List[String]): List[String] = {
@@ -89,11 +112,15 @@ class ERCommand(gcoreRunner: GcoreRunner){
   def graphGeneration() : PathPropertyGraph = {
     var generatedGraphGGD: PathPropertyGraph = PathPropertyGraph.empty
     var changesInGraph: Boolean = true
+    //gcoreRunner.sparkSession.conf.set("spark.sql.crossJoin.enabled", true)
     gcoreRunner.catalog.setDefaultGraph(ggds.AllGGDs.head.targetGP.head.name)
     while(changesInGraph){
       changesInGraph = false
       for(ggd <- ggds.AllGGDs) {
+        //val violated: ViolatedV2 = ggdValV2.ValidationV2(ggd)
         val violated: ViolatedV2 = ggdValV2.ValidationV3(ggd)
+        //println("Number of violated matches:" + violated.data.count())
+        //val violatedTest = ViolatedV2(violated.data.limit(1), ggd)
         if (!violated.data.isEmpty) {
           changesInGraph = true
           println("Violated GGD - graph generation to validate it")
@@ -101,7 +128,7 @@ class ERCommand(gcoreRunner: GcoreRunner){
           println(generatedGraphGGD.schemaString)
           //val saveGraph = SaveGraph()
           //saveGraph.saveJsonGraph(generatedGraphGGD, gcoreRunner.catalog.databaseDirectory)
-        }
+        }//else changesInGraph = false
       }
     }
     resultInfo = ggdValV2.genInfo

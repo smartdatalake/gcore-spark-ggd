@@ -1,4 +1,4 @@
-package ggd.ggd
+package ggd
 
 import org.apache.spark.api.java.function.FilterFunction
 import org.apache.spark.sql.Row

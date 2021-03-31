@@ -7,7 +7,6 @@ import ggd.Runner
 //import Joins.VernicaJoinAthena
 import compiler.{CompileContext, Compiler, GcoreCompiler}
 import org.apache.log4j.{Level, Logger}
-import org.apache.spark.sql.catalyst.parser.SimCatalystSqlParser
 import org.apache.spark.sql.{DataFrame, SparkSession, SparkSessionExtensions}
 import schema.EntitySchema.LabelRestrictionMap
 import schema.{PathPropertyGraph, Table}
@@ -142,23 +141,23 @@ object testPlayground {
       .csv("/benchmarkDatasets/AmazonGoogle/Amazon.csv")
       //.filter(col("description").isNull)
 
-    table1.show(10)
-    table2.show(10)
-
     val simjoiApi = new SimilarityAPI(gcoreRunner)
 
-    //table1.createOrReplaceTempView("table1")
-    //table2.createOrReplaceTempView("table2")
+    table1.createOrReplaceTempView("table11")
+    table2.createOrReplaceTempView("table22")
 
+
+    val queryApiTest = gcoreRunner.sparkSession.sql("SELECT * FROM table11")//JOIN table22 ON table11.name = table22.title")
+    queryApiTest.show(20)
     //Similarity Joins filter null values before executing the similarity join algorithm, it desconsiders these rows in the final result
 
-    //val queryApi = gcoreRunner.sparkSession.sql("SELECT * FROM table1 SIMILARITY JOIN table2 USING EDITSIMILARITY(table1.name, table2.title) < 3")
+    val queryApi = gcoreRunner.sparkSession.sql("SELECT * FROM table11 SIMILARITY JOIN table22 USING EDITSIMILARITY(table11.name, table22.title) < 3")
     //val queryApi = gcoreRunner.sparkSession.sql("SELECT * FROM table1 SIMILARITY JOIN table2 USING JACCARDSIMILARITY(table1.description, table2.description) < 0.8")
-    val queryApi = simjoiApi.SimJoin(table1, table2, "name", "title", "editsimilarity", 3, "<")
+    //val queryApi = simjoiApi.SimJoin(table1, table2, "name", "title", "editsimilarity", 3, "<")
 
-    queryApi.explain(true)
+    //queryApi.explain(true)
 
-    println("size:" + queryApi.count())
+    //println("size:" + queryApi.count())
     queryApi.show(30)
 
 

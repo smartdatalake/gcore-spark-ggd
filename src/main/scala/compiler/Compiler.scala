@@ -20,8 +20,10 @@
 
 package compiler
 
+import java.sql.Connection
+
 import schema.PathPropertyGraph
-import org.apache.spark.sql.{DataFrame}
+import org.apache.spark.sql.DataFrame
 
 trait Compiler {
 
@@ -32,4 +34,6 @@ trait Compiler {
   def compilePartialQuery(query: String, data: DataFrame): Any
 
   def compilePropertyGraphWithLimit(query: String, limit: Int = -1): Any
+
+  def compilerProteus(query: String, con: Connection) : Any
 }

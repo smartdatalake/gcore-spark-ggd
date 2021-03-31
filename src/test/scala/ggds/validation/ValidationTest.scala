@@ -1,8 +1,8 @@
 package ggds.validation
 
 import compiler.{CompileContext, Compiler, GcoreCompiler}
-import ggd.GcoreRunner
-import ggd.ggd.{GGDSet, ggdValidation}
+import ggd.{GGDSet, GcoreRunner}
+import ggd.ggd.ggdValidation
 import ggd.useCases.{dbPediaURL, dbPediaURLSame}
 import org.apache.jena.rdf.model.{Model, ModelFactory}
 import org.apache.spark.sql.SparkSession

@@ -414,6 +414,7 @@
             </plugin>
 
             <!-- javadoc plugin -->
+            <!--
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
@@ -426,7 +427,7 @@
                     </execution>
                 </executions>
             </plugin>
-
+               -->
             <!-- Plugin to run tests with mvn test -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

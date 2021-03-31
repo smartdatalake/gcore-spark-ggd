@@ -20,6 +20,8 @@
 
 package compiler
 
+import java.sql.Connection
+
 import algebra.AlgebraRewriter
 import algebra.operators.{Create, Drop, Query, SelectQuery, UnionQuery, View}
 import algebra.trees.{AlgebraContext, AlgebraTreeNode}
@@ -27,7 +29,7 @@ import org.apache.spark.sql.{DataFrame, Row}
 import parser.SpoofaxParser
 import parser.trees.ParseContext
 import schema.PathPropertyGraph
-import spark.sql.{SqlPartialRunner, SqlRunner}
+import spark.sql.{SqlJDBCRunner, SqlPartialRunner, SqlRunner}
 
 /** Defines the compilation pipeline of a G-CORE query. */
 case class GcoreCompiler(context: CompileContext) extends Compiler {
@@ -187,6 +189,26 @@ case class GcoreCompiler(context: CompileContext) extends Compiler {
         return targetPartial(rewrited)
       case _ => println("Not available at the moment")
     }
+  }
+
+  override def compilerProteus(query: String, con: Connection): Any = { //java sql jdbc connection
+    var parsed: AlgebraTreeNode  = parser(query)
+    val targetJDBC: RunTargetCodeStage = SqlJDBCRunner(context, con)
+    parsed match {
+      case query: Query => {
+        var rewrited: AlgebraTreeNode = rewriter(parsed)
+        println("Rewrote before running Proteus")
+        return targetJDBC(rewrited)
+      }
+      case select: SelectQuery =>{
+        //println("Select Query! (rewriter)")
+        //  var rewrited: AlgebraTreeNode = rewriter.rewriteSelect(parsed) //rewrite select queries in SQL
+        var rewrited: AlgebraTreeNode = rewriter(parsed)
+        return targetJDBC(rewrited).vertexData.apply(0).data //return the dataframe
+      }
+    }
+    //compile the queries and run on Proteus
+    return null
   }
 
 

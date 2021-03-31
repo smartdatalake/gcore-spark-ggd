@@ -1,26 +1,20 @@
-package ggd.ggd
+package ggd
 
 import algebra.expressions.Label
-import ggd.GcoreRunner
-import ggd.utils.GGDtoGCoreParser.{createPattern, diff}
-import ggd.utils.{DataFrameUtils, GGDtoGCoreParser, selectMatch}
-import org.apache.spark.sql.{DataFrame, Row}
-import org.apache.spark.sql.expressions.Window
-import org.apache.spark.sql.functions.{col, lit, row_number, struct, udf, monotonically_increasing_id}
-import spark.SparkGraph
-import common.RandomNameGenerator.randomString
 import common.RandomIdGenerator.randomId
-import org.apache.spark.sql.catalyst.parser.SqlBaseParser.TablePropertyKeyContext
+import common.RandomNameGenerator.randomString
+import ggd.utils.{DataFrameUtils, GGDtoGCoreParser, selectMatch}
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.{DataFrame, Row}
 import schema.EntitySchema.LabelRestrictionMap
 import schema.{PathPropertyGraph, SchemaMap, Table}
+import spark.SparkGraph
 
 import scala.collection.mutable.ArrayBuffer
 
 case class GraphGenerationV3(gcoreRunner: GcoreRunner) {
   var dependency: GraphGenDep = null
   val generationInformation : ArrayBuffer[generatedInfo] = new ArrayBuffer[generatedInfo]()
-
-  import gcoreRunner.sparkSession.implicits._
 
   def deleteNullValues(df: DataFrame): DataFrame = {
     var dfNoNulls = df
@@ -74,8 +68,6 @@ case class GraphGenerationV3(gcoreRunner: GcoreRunner) {
   }
 
   def constraintUdf = udf((row: Row) => constraintScoreTarget(row))
-
-  import gcoreRunner.sparkSession.implicits._
 
   def optionalFullQuery(ggd: GraphGenDep, violatedDf: DataFrame): SparkGraph = {
     dependency = ggd

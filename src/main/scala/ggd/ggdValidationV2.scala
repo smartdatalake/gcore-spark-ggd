@@ -1,21 +1,17 @@
-package ggd.ggd
+package ggd
 
 import java.io.PrintWriter
 
 import SimSQL.SimilarityAPI
-import application.enResInfo
-import ggd.GcoreRunner
-import ggd.utils.{DataFrameUtils, GGDtoGCoreParser, MinHashSimJoin, VernicaJoinAthena, matchOptional, selectMatch}
-import ggd.utils.GGDtoGCoreParser.commonVariables
-import org.apache.spark.ml.feature.{HashingTF, MinHashLSH}
-import org.apache.spark.sql.functions.{col, split}
-import org.apache.spark.sql.{DataFrame, Row}
+import ggd.utils.{DataFrameUtils, GGDtoGCoreParser, VernicaJoinAthena, selectMatch}
+import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.functions.col
 import org.apache.spark.storage.StorageLevel
 import org.json4s.DefaultFormats
 import org.json4s.jackson.Serialization
 import schema.EntitySchema.LabelRestrictionMap
-import schema.{EntitySchema, PathPropertyGraph, Table}
-import spark.{SaveGraph, SparkGraph}
+import schema.{PathPropertyGraph, Table}
+import spark.SparkGraph
 
 import scala.collection.mutable.ArrayBuffer
 

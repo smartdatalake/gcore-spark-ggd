@@ -1,8 +1,6 @@
-package ggd.ggd
+package ggd
 
-import spire.std.int
-
-import math._
+import scala.math._
 
 class distanceFunctions {
 

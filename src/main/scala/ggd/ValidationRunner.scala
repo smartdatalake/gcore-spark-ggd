@@ -1,11 +1,13 @@
 package ggd
 
 import SimSQL.logicalPlan.{ResolveSimJoin, SimJoinOptimizer}
+import SimSQL.parser.SimCatalystSqlParser
+//import org.apache.spark.sql.parser.SimCatalystSqlParser
+//import SimSQL.parser.SimCatalystSqlParser
 import SimSQL.physicalPlan.SimJoinSelection
 import compiler.{CompileContext, Compiler, GcoreCompiler}
 import ggd.{GGDSet, GraphGenDep, ViolatedV2, ggdValidationV2}
 import org.apache.jena.rdf.model.{Model, ModelFactory, RDFList, RDFNode, RDFReader, StmtIterator}
-import org.apache.spark.sql.catalyst.parser.SimCatalystSqlParser
 import org.apache.spark.sql.{DataFrame, SparkSession, SparkSessionExtensions}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.w3c.dom.traversal.NodeIterator

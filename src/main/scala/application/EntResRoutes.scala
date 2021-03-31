@@ -6,8 +6,7 @@ import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Directives.{as, complete, concat, entity, get, path, pathEnd, pathPrefix, post}
 import akka.http.scaladsl.server.PathMatchers.Segment
 import akka.http.scaladsl.server.{Directives, Route}
-import ggd.ERCommand
-import ggd.ggd.generatedInfo
+import ggd.{ERCommand, generatedInfo}
 import org.apache.spark.sql.DataFrame
 import org.json4s.DefaultFormats
 import org.json4s.jackson.Serialization
