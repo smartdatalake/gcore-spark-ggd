@@ -16,7 +16,7 @@ class ERCommand(gcoreRunner: GcoreRunner){
   var ggds = new GGDSet()
   val ggdValV2 : ggdValidationV2 = new ggdValidationV2(gcoreRunner)
   var resultInfo: ArrayBuffer[generatedInfo] = null
-  val loadP = new loadProteus(gcoreRunner)
+  val loadP = new loadJDBC(gcoreRunner)
 
   def getGcore(): GcoreRunner = {
     return gcoreRunner
@@ -36,7 +36,7 @@ class ERCommand(gcoreRunner: GcoreRunner){
     return df
   }
 
-  def runSelectQueryProteus(query: String): DataFrame = {
+  def runSelectQueryJDBC(query: String): DataFrame = {
     val df = gcoreRunner.compiler.compilerProteus(query, loadP.con).asInstanceOf[DataFrame]
     df
   }
@@ -46,21 +46,45 @@ class ERCommand(gcoreRunner: GcoreRunner){
     return graph
   }
 
-  def runConstructQueryProteus(query: String) : PathPropertyGraph = {
+  def runConstructQueryJDBC(query: String) : PathPropertyGraph = {
     val graph = gcoreRunner.compiler.compilerProteus(query, loadP.con).asInstanceOf[PathPropertyGraph]
     return graph
   }
 
-  def openConnectionProteus(): Unit = {
-    loadP.openConnection()
+  def openConnectionJDBC(url: String, user: String, pwd: String): Unit = {
+    loadP.openConnection(url, user, pwd)
   }
 
-  def closeConnectionProteus(): Unit = {
+  def closeConnectionJDBC(): Unit = {
     loadP.closeConnection()
   }
 
   def loadGraphProteus(configPath: String): Unit = {
     loadP.loadSparkJDBC(configPath)
+  }
+
+  def loadDatabase(folder: String): Unit = {
+    var directory = new Directory
+    var load = directory.loadDatabase(folder, gcoreRunner.sparkSession, gcoreRunner.catalog)
+    gcoreRunner.catalog.databaseDirectory = folder
+    if (load)
+      println("Current Database: "+folder)
+    else
+      println("The database entered was not loaded correctly")
+  }
+
+  def loadDatabaseJDBC(folder: String): Unit = {
+    if(loadP.con == null){
+      println("No connection available for JDBC")
+      return
+    }
+    var directory = new Directory
+    var load = directory.loadDatabaseJDBC(folder, gcoreRunner.sparkSession, gcoreRunner.catalog, loadP)
+    gcoreRunner.catalog.databaseDirectory = folder
+    if (load)
+      println("Current Database: "+folder)
+    else
+      println("The database entered was not loaded correctly")
   }
 
   def graphSchemaList(names : List[String]): List[String] = {
@@ -86,6 +110,15 @@ class ERCommand(gcoreRunner: GcoreRunner){
     val violatedGGDs = new ArrayBuffer[GraphGenDep]()
     for(ggd <- ggds.AllGGDs){
       val violated = ggdValV2.ValidationV3(ggd)
+      if(violated.data.isEmpty) violatedGGDs += violated.ggd
+    }
+    violatedGGDs
+  }
+
+  def ValidationProteus(): Seq[GraphGenDep] = {
+    val violatedGGDs = new ArrayBuffer[GraphGenDep]()
+    for(ggd <- ggds.AllGGDs){
+      val violated = ggdValV2.ValidationProteus(ggd, loadP.con)
       if(violated.data.isEmpty) violatedGGDs += violated.ggd
     }
     violatedGGDs
@@ -118,7 +151,7 @@ class ERCommand(gcoreRunner: GcoreRunner){
       changesInGraph = false
       for(ggd <- ggds.AllGGDs) {
         //val violated: ViolatedV2 = ggdValV2.ValidationV2(ggd)
-        val violated: ViolatedV2 = ggdValV2.ValidationV3(ggd)
+        val violated: Violated = ggdValV2.ValidationV3(ggd)
         //println("Number of violated matches:" + violated.data.count())
         //val violatedTest = ViolatedV2(violated.data.limit(1), ggd)
         if (!violated.data.isEmpty) {
@@ -134,6 +167,10 @@ class ERCommand(gcoreRunner: GcoreRunner){
     resultInfo = ggdValV2.genInfo
     gcoreRunner.catalog.registerGraph(generatedGraphGGD)
     return generatedGraphGGD
+  }
+
+  def graphGenerationJDBC(): PathPropertyGraph = {
+    null
   }
 
 

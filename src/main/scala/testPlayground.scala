@@ -134,11 +134,11 @@ object testPlayground {
 
     val table1 = gcoreRunner.sparkSession.read.option("header","true")
       .option("inferschema", true)
-      .csv("/benchmarkDatasets/AmazonGoogle/GoogleProducts.csv")
+      .csv("/home/larissacsh/Documents/entityResolution/benchmarkDatasets/AmazonGoogle/GoogleProducts.csv")
       //.filter(col("description").isNull)
     val table2 = gcoreRunner.sparkSession.read.option("header","true")
       .option("inferschema", true)
-      .csv("/benchmarkDatasets/AmazonGoogle/Amazon.csv")
+      .csv("/home/larissacsh/Documents/entityResolution/benchmarkDatasets/AmazonGoogle/Amazon.csv")
       //.filter(col("description").isNull)
 
     val simjoiApi = new SimilarityAPI(gcoreRunner)
@@ -151,9 +151,9 @@ object testPlayground {
     queryApiTest.show(20)
     //Similarity Joins filter null values before executing the similarity join algorithm, it desconsiders these rows in the final result
 
-    val queryApi = gcoreRunner.sparkSession.sql("SELECT * FROM table11 SIMILARITY JOIN table22 USING EDITSIMILARITY(table11.name, table22.title) < 3")
+    //val queryApi = gcoreRunner.sparkSession.sql("SELECT * FROM table11 SIMILARITY JOIN table22 USING EDITSIMILARITY(table11.name, table22.title) < 3")
     //val queryApi = gcoreRunner.sparkSession.sql("SELECT * FROM table1 SIMILARITY JOIN table2 USING JACCARDSIMILARITY(table1.description, table2.description) < 0.8")
-    //val queryApi = simjoiApi.SimJoin(table1, table2, "name", "title", "editsimilarity", 3, "<")
+    val queryApi = simjoiApi.SimJoin(table1, table2, "name", "title", "jaccardsimilarity", 0.8, "<")
 
     //queryApi.explain(true)
 

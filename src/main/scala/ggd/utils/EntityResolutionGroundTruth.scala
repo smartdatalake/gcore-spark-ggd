@@ -1,25 +1,20 @@
 package ggd.utils
 
 //import org.apache.spark.sql.DataFrame
+import java.io.{FileWriter, PrintWriter}
+
 import org.apache.spark.sql.{DataFrame, SparkSession}
+import ggd.utils.Result
 
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 import scala.util.Sorting
 
-class Result{
-  var truePos : Int = 0 //o que tem nas duas listas
-  var trueNeg : Int = 0 //o resto do numero de entities -> nao usado
-  var falsePos : Int = 0 //o que tem apenas na lista de resultados
-  var falseNeg : Int = 0 //o que tem apenas na lista de ground truth
-}
+class EntityResolutionGroundTruth {
 
-class GroundTruthSource {
-
-  //val loadDataFn: String => DataFrame
   var read = ArrayBuffer[(String,String)]()
   var groundTruth: Array[(String,String)] = Array.empty
-  var res = new Result()
+  //var res = new Result()
 
   def readGroundTruth(path: String, sep: String):  Unit = {
     for(line <- Source.fromFile(path).getLines()) {
@@ -33,12 +28,12 @@ class GroundTruthSource {
   def compareGroundTruth(results: Array[(String,String)]) : Result = {
     results.sortBy(x => (x._1, x._2))
     groundTruth.sortBy(x => (x._1, x._2))
-    res.truePos = groundTruth.intersect(results).size
-    res.falsePos = results.diff(groundTruth).size
-    res.falseNeg = groundTruth.diff(results).size
-    res.trueNeg = 0 //not used yet
+    //res.truePos = groundTruth.intersect(results).size
+    //res.falsePos = results.diff(groundTruth).size
+    //res.falseNeg = groundTruth.diff(results).size
+    //res.trueNeg = 0 //not used yet
     //verificar com a lista de groundtruth e criar result
-    return res
+    Result(groundTruth.intersect(results).size, 0, results.diff(groundTruth).size, groundTruth.diff(results).size)
   }
 
   def getResultsFromTable(df: DataFrame, spark: SparkSession) : Array[(String, String)] = {
@@ -47,12 +42,29 @@ class GroundTruthSource {
     array.collect()
   }
 
-  def prettyPrintResults(): Unit = {
+  def saveGroundTruthComparison(resultSet: Array[Result], path: String): Unit = {
+    if(path == ""){
+      println("Path is not specified")
+      return
+    }
+    val resultAll = resultSet.zipWithIndex
+    val csvheader = List("result-id", "true-positive", "false-positive", "true-negative", "false-negative")
+    try {
+      val filewriter = new FileWriter(path)
+      filewriter.write(csvheader.mkString(",") + "\n")
+      filewriter.write(resultAll.map(x => {
+         x._2.toString + "," + x._1.truePos + "," + x._1.falsePos +","+x._1.trueNeg + "," + x._1.falseNeg
+      }).mkString("\n"))
+    } catch {
+      case e: Exception => println("Couldn't write the file to this path")
+    }
+  }
+
+  def prettyPrintResults(res: Result): Unit = {
     println("True positive = " + res.truePos)
     println("False positive = " + res.falsePos)
     println("False negative = " + res.falseNeg)
     println("True negative = " + res.trueNeg)
   }
-
 
 }

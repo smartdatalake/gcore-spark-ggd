@@ -1,6 +1,7 @@
 package ggd
 
 import java.io.PrintWriter
+import java.sql.Connection
 
 import SimSQL.SimilarityAPI
 import ggd.utils.{DataFrameUtils, GGDtoGCoreParser, VernicaJoinAthena, selectMatch}
@@ -15,7 +16,7 @@ import spark.SparkGraph
 
 import scala.collection.mutable.ArrayBuffer
 
-case class ViolatedV2(data: DataFrame, ggd: GraphGenDep)
+case class Violated(data: DataFrame, ggd: GraphGenDep)
 
 case class SelectedSource(numberElements: Long, ggd: String)
 
@@ -26,7 +27,7 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
   import gcoreRunner.sparkSession.implicits._
 
   //validation algorithm without the similarity join operator. Constraints are validated by using row by row comparison
-  def ValidationV2(ggd: GraphGenDep) : ViolatedV2 = {
+  def ValidationV2(ggd: GraphGenDep) : Violated = {
     val dist: distanceFunctions = new distanceFunctions;
     val gcoreSelectMatch : selectMatch = GGDtoGCoreParser.parseGCoreSelectMatch(ggd.sourceGP)
     val gcoreQuery: String = "SELECT " + gcoreSelectMatch.selectClause + " MATCH " + gcoreSelectMatch.matchClause
@@ -38,7 +39,7 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
     println("Satisfied source patterns::" + result.count())
     sourceSize += SelectedSource(result.count(), ggd.name)
     if(result.isEmpty){
-      return new ViolatedV2(gcoreRunner.sparkSession.emptyDataFrame, ggd) //if result is empty non ggd should be violated
+      return new Violated(gcoreRunner.sparkSession.emptyDataFrame, ggd) //if result is empty non ggd should be violated
     }
     //target graph pattern
     //val targetQuery: String = GGDtoGCoreParser.parseGCore(ggd.targetGP) - change target to only does not have in source (same as graph generation)
@@ -51,21 +52,21 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
     if(targetQuery == ""){ //case for empty target -> only source variables in the target constraint
       var filtered = result.filter(ConstraintFilter(ggd.targetCons)) //source rows that satisfies target constraints
      // val diff = result.except(filtered) //retira as linhas do dataframe que satisfazem o target constraints (sobra apenas as rows que não satisfazem)
-      return new ViolatedV2(result.except(filtered), ggd)
+      return new Violated(result.except(filtered), ggd)
     }
     var caughtExeception: Boolean = false
       try{
         targetResult = gcoreRunner.compiler.compilePropertyGraph(targetQuery).asInstanceOf[DataFrame]//.cache()
       }catch {
         case nonExistingLabel : algebra.exceptions.DisjunctLabelsException => {
-          return new ViolatedV2(result, ggd)
+          return new Violated(result, ggd)
         }
         case e: Exception => {
           e.printStackTrace()
-          return new ViolatedV2(result, ggd)
+          return new Violated(result, ggd)
         }
       }
-    if(targetResult.isEmpty) return ViolatedV2(result, ggd)
+    if(targetResult.isEmpty) return Violated(result, ggd)
     val commonVar: List[String] = result.columns.map(_.split('$').apply(0)).intersect(targetResult.columns.map(_.split('$').apply(0))).distinct.toList
     if(!commonVar.isEmpty){
       val commonColumns: List[String] = commonVar.map( x => x + "$id")
@@ -79,20 +80,20 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
       val violatedSelect = result.select(sourceColumnsId.head, sourceColumnsId.tail:_*)//.except(filteredSource)
       violatedSelect.show(10)
       val violatedIds = violatedSelect.except(filteredSource)
-      if(violatedIds.isEmpty)return ViolatedV2(gcoreRunner.sparkSession.emptyDataFrame, ggd)
+      if(violatedIds.isEmpty)return Violated(gcoreRunner.sparkSession.emptyDataFrame, ggd)
       val violatedSource = result.join(violatedIds, sourceColumnsId, "inner")
-      ViolatedV2(violatedSource, ggd)
+      Violated(violatedSource, ggd)
     }else {
       if(targetResult.filter(ConstraintFilter(ggd.targetCons)).isEmpty){
-        ViolatedV2(result, ggd)
+        Violated(result, ggd)
       }else{
-        ViolatedV2(gcoreRunner.sparkSession.emptyDataFrame, ggd)
+        Violated(gcoreRunner.sparkSession.emptyDataFrame, ggd)
       }
     }
   }
 
   //graph generation function
-  def graphGenerationV3(violatedGGDs: ViolatedV2) : PathPropertyGraph = {
+  def graphGenerationV3(violatedGGDs: Violated) : PathPropertyGraph = {
     val y: GraphGenerationV3 = new GraphGenerationV3(gcoreRunner)
     val graph: SparkGraph = y.optionalFullQuery(violatedGGDs.ggd, violatedGGDs.data)
     genInfo = y.generationInformation
@@ -164,7 +165,7 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
 
   //check the generation of only the violated data -> only for unit tests
   //when having more than1 constraints the other constratins can generate data that violates another constraints this function does not consider that
-  def checkGeneration(violated : ViolatedV2, generatedGraph : PathPropertyGraph) : Boolean = {
+  def checkGeneration(violated : Violated, generatedGraph : PathPropertyGraph) : Boolean = {
     val query: String = GGDtoGCoreParser.parseGCore(violated.ggd.targetGP)
     val parsed: selectMatch = GGDtoGCoreParser.parseGCoreSelectMatch(violated.ggd.targetGP)
     //println(" Query:::" + query)
@@ -181,8 +182,94 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
     return false
   }
 
+  def ValidationProteus(ggd: GraphGenDep, con: Connection) : Violated = {
+    //source graph pattern
+    val dist: distanceFunctions = new distanceFunctions;
+    val gcoreSelectMatch : selectMatch = GGDtoGCoreParser.parseGCoreSelectMatch(ggd.sourceGP)
+    var queryResults = Array.empty[DataFrame]
+    var result = gcoreRunner.sparkSession.emptyDataFrame
+    if(ggd.sourceGP.size > 1){
+      val queries = ggd.sourceGP.map(x => GGDtoGCoreParser.parseGCoreSelectMatch(List(x)))
+      val graphPatterns = queries.map(m => "SELECT * MATCH " + m.matchClause).toArray
+      //val graphPatterns = gcoreSelectMatch.matchClause.split(",").map(m => "SELECT * MATCH " + m) //array of match clauses
+      queryResults = graphPatterns.map(query => gcoreRunner.compiler.compilerProteus(query, con).asInstanceOf[DataFrame].persist(StorageLevel.MEMORY_AND_DISK_SER))
+      result = filteredResults(ggd, queryResults, ggd.sourceCons)
+    }else{
+      val query = "SELECT * MATCH " + gcoreSelectMatch.matchClause
+      queryResults = Array(gcoreRunner.compiler.compilerProteus(query, con).asInstanceOf[DataFrame])
+      result = filteredResults(ggd, queryResults, ggd.sourceCons)
+    }
+    println("filtered Results!!")
+    println("Satisfied source patterns::" + result.show(10))
+    //sourceSize += SelectedSource(result.count(), ggd.name)
+    if(result.isEmpty){
+      return Violated(gcoreRunner.sparkSession.emptyDataFrame, ggd) //if result is empty non ggd should be violated
+    }
+    //target graph pattern
+    //target GP -> only takes head pattern (one graph pattern, if needed more than that declare in different GGDs
+    // change target to only does not have in source (same as graph generation)
+    val sourceVariables: List[String] = ggd.sourceGP.map(x => x.parseToGCoreSelect()).flatMap(_.variables)
+    val targetVariables: List[String] = ggd.targetGP.head.vertices.map(_.variable) ++ ggd.targetGP.head.edges.map(_.variable)
+    val commonVarPattern: List[String] = GGDtoGCoreParser.commonVariables(sourceVariables, targetVariables)
+    val matchOptionalClause = GGDtoGCoreParser.partialPattern(ggd.targetGP.head, commonVarPattern)
+    val targetQuery: String = "SELECT * MATCH " + matchOptionalClause.optionalClause
+    var targetResult: DataFrame = gcoreRunner.sparkSession.emptyDataFrame
+    result = DataFrameUtils.removeDuplicateColumns(result)
+    if(matchOptionalClause.optionalClause == ""){ //case for empty target -> only source variables in the target constraint
+      val filtered = filteredResults(ggd, Array(result), ggd.targetCons)
+      return Violated(result.except(filtered), ggd)
+    }
+    var caughtExeception: Boolean = false
+    try{
+      //targetResult = filteredResultsTarget(selectMatchTarget, ggd)
+      targetResult =  gcoreRunner.compiler.compilerProteus(targetQuery, con).asInstanceOf[DataFrame]//.cache()
+      //targetResult = gcoreRunner.compiler.compilePropertyGraph(targetQuery).asInstanceOf[DataFrame]//.cache()
+    }catch {
+      case nonExistingLabel : algebra.exceptions.DisjunctLabelsException => {
+        return new Violated(result, ggd)
+      }
+      case e: Exception => {
+        e.printStackTrace()
+        return new Violated(result, ggd)
+      }
+    }
+    //1 filter rows which has equal id of the common variables in the graph pattern
+    if(targetResult.isEmpty) return Violated(result, ggd)
+    targetResult.show(10)
+    //get common variables for constraint checking + getting all the data needed for the ggds checking in one df
+    val commonVar: List[String] = result.columns.map(_.split('$').apply(0)).intersect(targetResult.columns.map(_.split('$').apply(0))).distinct.toList
+    if(!commonVar.isEmpty){
+      //val commonColumns: List[String] = commonVar.map( x => x + "$id").diff(Seq("sid$id"))
+      //val commonColumnsAll: List[String] = result.columns.intersect(targetResult.columns).distinct.toList
+      val filteredSourceTarget = DataFrameUtils.removeDuplicateColumns(filteredResults(ggd, Array(targetResult, result), ggd.targetCons))
+      //val filteredSourceTarget = filteredTargetResults(ggd, targetResult, result, ggd.targetCons)
+      val variables = ggd.sourceGP.map(_.vertices.map(_.variable)).flatten ++ ggd.sourceGP.map(_.edges.map(_.variable)).flatten
+      val sourceColumnsId = variables.map(x =>  x + "$id")
+      val filteredSource = filteredSourceTarget.select(sourceColumnsId.head, sourceColumnsId.tail:_*)//.dropDuplicates(sourceColumnsId.head, sourceColumnsId.tail:_*)
+      val violatedSelect = result.select(sourceColumnsId.head, sourceColumnsId.tail:_*)//.except(filteredSource)
+      //violatedSelect.show(10)
+      //anti join for checking ids
+      val violatedIds = violatedSelect.except(filteredSource)
+      if(violatedIds.isEmpty)return Violated(gcoreRunner.sparkSession.emptyDataFrame, ggd)
+      val violatedSource = result.join(violatedIds, sourceColumnsId, "inner")
+      Violated(violatedSource, ggd)
+    }else {
+      val targetNoCommon = filteredResults(ggd, Array(targetResult), ggd.targetCons)
+      //targetResult.filter(ConstraintFilter(ggd.targetCons))
+      if(targetNoCommon.isEmpty){
+        Violated(result, ggd)
+      }else{
+        Violated(gcoreRunner.sparkSession.emptyDataFrame, ggd)
+      }
+    }
+  }
 
-  def ValidationV3(ggd: GraphGenDep) : ViolatedV2 = {
+  /***
+   *
+   * @param ggd - A graph generating dependency (one of the set inputted in the main class)
+   * @return Violated class in which has the ggd which was violated and a Dataframe containing the source graph pattern instances which violates the GGDs.
+   */
+  def ValidationV3(ggd: GraphGenDep) : Violated = {
     //source graph pattern
     val dist: distanceFunctions = new distanceFunctions;
     val gcoreSelectMatch : selectMatch = GGDtoGCoreParser.parseGCoreSelectMatch(ggd.sourceGP)
@@ -203,7 +290,7 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
     println("Satisfied source patterns::" + result.show(10))
     //sourceSize += SelectedSource(result.count(), ggd.name)
     if(result.isEmpty){
-      return ViolatedV2(gcoreRunner.sparkSession.emptyDataFrame, ggd) //if result is empty non ggd should be violated
+      return Violated(gcoreRunner.sparkSession.emptyDataFrame, ggd) //if result is empty non ggd should be violated
     }
     //target graph pattern
     //target GP -> only takes head pattern (one graph pattern, if needed more than that declare in different GGDs
@@ -217,7 +304,7 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
     result = DataFrameUtils.removeDuplicateColumns(result)
     if(matchOptionalClause.optionalClause == ""){ //case for empty target -> only source variables in the target constraint
       val filtered = filteredResults(ggd, Array(result), ggd.targetCons)
-      return ViolatedV2(result.except(filtered), ggd)
+      return Violated(result.except(filtered), ggd)
     }
     var caughtExeception: Boolean = false
     try{
@@ -225,15 +312,15 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
       targetResult = gcoreRunner.compiler.compilePropertyGraph(targetQuery).asInstanceOf[DataFrame]//.cache()
     }catch {
       case nonExistingLabel : algebra.exceptions.DisjunctLabelsException => {
-        return new ViolatedV2(result, ggd)
+        return new Violated(result, ggd)
       }
       case e: Exception => {
         e.printStackTrace()
-        return new ViolatedV2(result, ggd)
+        return new Violated(result, ggd)
       }
     }
     //1 filter rows which has equal id of the common variables in the graph pattern
-    if(targetResult.isEmpty) return ViolatedV2(result, ggd)
+    if(targetResult.isEmpty) return Violated(result, ggd)
     targetResult.show(10)
     //get common variables for constraint checking + getting all the data needed for the ggds checking in one df
     val commonVar: List[String] = result.columns.map(_.split('$').apply(0)).intersect(targetResult.columns.map(_.split('$').apply(0))).distinct.toList
@@ -249,16 +336,16 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
       //violatedSelect.show(10)
       //anti join for checking ids
       val violatedIds = violatedSelect.except(filteredSource)
-      if(violatedIds.isEmpty)return ViolatedV2(gcoreRunner.sparkSession.emptyDataFrame, ggd)
+      if(violatedIds.isEmpty)return Violated(gcoreRunner.sparkSession.emptyDataFrame, ggd)
       val violatedSource = result.join(violatedIds, sourceColumnsId, "inner")
-      ViolatedV2(violatedSource, ggd)
+      Violated(violatedSource, ggd)
     }else {
       val targetNoCommon = filteredResults(ggd, Array(targetResult), ggd.targetCons)
         //targetResult.filter(ConstraintFilter(ggd.targetCons))
       if(targetNoCommon.isEmpty){
-        ViolatedV2(result, ggd)
+        Violated(result, ggd)
       }else{
-        ViolatedV2(gcoreRunner.sparkSession.emptyDataFrame, ggd)
+        Violated(gcoreRunner.sparkSession.emptyDataFrame, ggd)
       }
     }
   }

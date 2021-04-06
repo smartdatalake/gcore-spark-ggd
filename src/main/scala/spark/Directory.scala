@@ -23,6 +23,7 @@ package spark
 import java.io.{File, IOException}
 import java.nio.file.Paths
 
+import ggd.utils.{loadJDBC, loadProteus}
 import org.apache.commons.io.FileUtils
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import schema.Catalog
@@ -83,6 +84,35 @@ class Directory {
       .map(_.getName)
   }
 
+  def loadDatabaseJDBC(directory: String, sparkSession: SparkSession, catalog: Catalog, load: loadJDBC): Boolean = {
+    val dir = new File(directory)
+    if (!dir.exists) {
+      dir.mkdir
+      return true
+    }
+    else
+    {
+      try {
+        var subDirectories = getListOfSubDirectories(directory)
+        subDirectories.foreach(subDirectory =>{
+          loadGraphJDBC(directory+File.separator+subDirectory,subDirectory,sparkSession, catalog, load)
+        })
+        return true
+      }
+      catch{
+        case _: Throwable => return false
+      }
+    }
+  }
 
+  private def loadGraphJDBC(subDirectory: String, graphName: String, sparkSession:SparkSession, catalog: Catalog, load: loadJDBC) {
+    var sparkCatalog : SparkCatalog = SparkCatalog(sparkSession)
+    val graphSource = new GraphSource(sparkSession) {
+      override val loadDataFn: String => DataFrame = _ => sparkSession.emptyDataFrame
+    }
+    val jsonConfig = GraphSource.parseJsonConfig(Paths.get(subDirectory+File.separator+"config.json"))
+    val graph = load.loadGraphSparkJDBC(jsonConfig, graphSource)
+    catalog.registerGraph(graph)
+  }
 
 }
