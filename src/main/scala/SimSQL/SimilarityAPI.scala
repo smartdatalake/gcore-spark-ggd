@@ -1,8 +1,9 @@
 package SimSQL
 
-import ggd.GcoreRunner
+import ggd.{GcoreRunner, distanceFunctions}
 import ggd.utils.Result
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.functions.udf
 
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
@@ -34,10 +35,44 @@ case class SimilarityAPI(gcoreRunner: GcoreRunner) {
     }
   }
 
+  //Not recommended for big datasets, just for testing purposes
   def BruteForceSimJoin(left: DataFrame, right: DataFrame, leftKey: String, rightKey: String,
                         function: String, threshold: Double, operator: String): DataFrame = {
-    null
+    function.toLowerCase match {
+      case "jaccardsimilarity" =>{
+        if(operator == "<") left.join(right, jaccard_udf(left.col(leftKey), right.col(rightKey)) < threshold)
+        else  left.join(right, jaccard_udf(left.col(leftKey), right.col(rightKey)) <= threshold)
+      }
+      case "selfjaccardsimilarity" =>{
+        if(operator == "<") left.join(right, jaccard_udf(left.col(leftKey), right.col(rightKey)) < threshold)
+        else  left.join(right, jaccard_udf(left.col(leftKey), right.col(rightKey)) <= threshold)
+       }
+      case "editsimilarity" =>
+        if(operator == "<") left.join(right, edit_udf(left.col(leftKey), right.col(rightKey)) < threshold)
+        else  left.join(right, edit_udf(left.col(leftKey), right.col(rightKey)) <= threshold)
+    }
   }
+
+  val jaccard_udf = udf((s1 : String, s2 : String) => {
+    /*val overlap = (s1.split(" ").intersect(s2.split(" "))).toSet.size
+    val union = (s1.split(" ").union(s2.split(" "))).toSet.size
+    overlap.toDouble/union.toDouble*/
+    val dist = new distanceFunctions
+    dist.jaccardSimilarity(s1,s2," ")
+  });
+
+  val edit_udf = udf((s1 : String, s2 : String) => {
+    /*val dist = Array.tabulate(s2.length + 1, s1.length + 1) { (j, i) => if (j == 0) i else if (i == 0) j else 0 }
+    @inline
+    def minimum(i: Int*): Int = i.min
+    for {j <- dist.indices.tail
+         i <- dist(0).indices.tail} dist(j)(i) =
+      if (s2(j - 1) == s1(i - 1)) dist(j - 1)(i - 1)
+      else minimum(dist(j - 1)(i) + 1, dist(j)(i - 1) + 1, dist(j - 1)(i - 1) + 1)
+    dist(s2.length)(s1.length)*/
+    val dist = new distanceFunctions
+    dist.editDistance(s1,s2)
+  });
 
   def compareSimJoinBruteForce(left: DataFrame, right: DataFrame, leftKey: String, rightKey: String,
                                function: String, threshold: Double, operator: String): Result = {

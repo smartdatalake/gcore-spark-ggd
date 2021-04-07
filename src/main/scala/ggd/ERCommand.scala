@@ -115,7 +115,7 @@ class ERCommand(gcoreRunner: GcoreRunner){
     violatedGGDs
   }
 
-  def ValidationProteus(): Seq[GraphGenDep] = {
+  def ValidationJDBC(): Seq[GraphGenDep] = {
     val violatedGGDs = new ArrayBuffer[GraphGenDep]()
     for(ggd <- ggds.AllGGDs){
       val violated = ggdValV2.ValidationProteus(ggd, loadP.con)

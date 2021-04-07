@@ -19,6 +19,11 @@ class distanceFunctions {
       })
   } // /: means foldLeft //verify edit distance
 
+  def jaccardSimilarity(s1: String, s2: String, splitSymbol: String = " "): Double = {
+    val overlap = (s1.split(splitSymbol).intersect(s2.split(splitSymbol))).toSet.size
+    val union = (s1.split(splitSymbol).union(s2.split(splitSymbol))).toSet.size
+    overlap.toDouble/union.toDouble
+  }
 
   def editDistance(s1: String, s2: String): Int = {
     val dist = Array.tabulate(s2.length + 1, s1.length + 1) { (j, i) => if (j == 0) i else if (i == 0) j else 0 }
@@ -34,10 +39,13 @@ class distanceFunctions {
     dist(s2.length)(s1.length)
   }
 
-  //def EqualVar() x= x
-
   def getArray(str: String): Array[Double] = {
     val a: Array[String] = str.split(",")
+    return a.map(str => str.toDouble)
+  }
+
+  def getArray(str: String, splitSymbol: String = ","): Array[Double] = {
+    val a: Array[String] = str.split(splitSymbol)
     return a.map(str => str.toDouble)
   }
 

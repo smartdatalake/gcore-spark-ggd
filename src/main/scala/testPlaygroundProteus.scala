@@ -15,7 +15,7 @@ object testPlaygroundProteus {
     //val s = new SaveGraph()
     //s.saveJsonGraph(gcoreRunner.catalog.graph("Google"), "/home/Documents/entityResolution/")
     //val df = runner.runSelectQuery("SELECT * MATCH (p:ProductGoogle)-[x:producedbyGoogle]->(y:ManufacturerGoogle) ON Google LIMIT 10") //(p:ProductGoogle)-[x:producedbyGoogle]->(y:ManufacturerGoogle)
-    val df = runner.runSelectQueryProteus("SELECT * MATCH (p:ProductGoogle) ON Google")
+    val df = runner.runSelectQueryJDBC("SELECT * MATCH (p:ProductGoogle) ON Google")
     df.show(20)
     loadP.closeConnection()
 
