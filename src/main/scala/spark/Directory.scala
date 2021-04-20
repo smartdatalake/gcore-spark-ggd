@@ -23,7 +23,7 @@ package spark
 import java.io.{File, IOException}
 import java.nio.file.Paths
 
-import ggd.utils.{loadJDBC, loadProteus}
+import ggd.utils.loadJDBC
 import org.apache.commons.io.FileUtils
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import schema.Catalog

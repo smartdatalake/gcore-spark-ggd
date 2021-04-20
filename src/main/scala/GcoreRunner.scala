@@ -31,6 +31,7 @@ import org.apache.log4j.Level
 
 
 /** Main entry point of the interpreter. */
+//Gcore-Runner from the original G-Core repository
 object GcoreRunner {
 
   def newRunner: GcoreRunner = {

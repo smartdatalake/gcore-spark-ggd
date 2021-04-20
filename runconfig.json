@@ -1,0 +1,11 @@
+{
+	"query":"spark",
+	"database": "/media/larissacsh/Data/SDLdatasets/DemoGraphs",
+	"ggds": "/home/larissacsh/Documents/entityResolution/benchmarkDatasets/ggdTestFolder/config.json",
+	"jdbcurl": "jdbc:avatica:remote:url=http://diascld32.iccluster.epfl.ch:18010;serialization=PROTOBUF",
+	"username": "proteus_jdbc_username",
+	"pwd": "proteus_jdbc_pwd",
+	"verification": true,
+	"savegraph": "/home/larissacsh/Documents/entityResolution/testAPI/",
+	"verificationpath": "/home/larissacsh/Documents/entityResolution/testAPI/groundtruth.csv"
+}

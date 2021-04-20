@@ -3,18 +3,13 @@ package ggd
 import java.io.File
 import java.nio.file.Paths
 
-import compiler.{CompileContext, Compiler, GcoreCompiler}
-import ggd.{GGDSet, GraphGenDep, ViolatedV2, ggdValidationV2}
 import org.apache.log4j.{Level, Logger}
-import org.apache.spark.sql.{DataFrame, SparkSession}
-import schema.EntitySchema.LabelRestrictionMap
-import schema.{EntitySchema, PathPropertyGraph, SchemaMap}
+import org.apache.spark.sql.DataFrame
+import schema.{PathPropertyGraph, SchemaException}
 import spark.examples.{CompanyGraph, DummyGraph, PeopleGraph, SocialGraph}
-import spark.{Directory, GraphSource, SaveGraph, SparkCatalog, SparkGraph}
+import spark.{Directory, GraphSource, SaveGraph, SparkCatalog}
 
-import scala.collection.mutable.ArrayBuffer
-
-
+//Main for command-line application in the same format as the G-Core original application
 object ERRunner{
 
   def main(args: Array[String]): Unit = {
@@ -66,7 +61,6 @@ object ERRunner{
         case "\\g" =>
           println("Load ggds")
           loadGGDs(gcoreRunner, ERCommand, option)
-          //ERCommand.ggds.AllGGDs.head.prettyPrint()
         case "\\e" =>
           println("Run ER components")
           runGraphGeneration(gcoreRunner, ERCommand)
@@ -74,21 +68,21 @@ object ERRunner{
           if(option.length >0 && option.substring(option.length-1).trim == ";") {
 
             var query = option.replace(";", "").trim
-            /* try {*/
+            try {
             println(query)
             gcoreRunner.compiler.compile(
               query)
-            /*}
+            }
             catch {
-              //case parseException: parser.exceptions.QueryParseException => println(" Query type unsupported for the moment")
-              //case defaultgNotAvalilable: algebra.exceptions.DefaultGraphNotAvailableException => println(" No default graph available")
-              //case analysisException: org.apache.spark.sql.AnalysisException => println("Error: " + analysisException.getMessage())
-              //case unsupportedOperation: common.exceptions.UnsupportedOperation => println("Error: " + unsupportedOperation.getMessage)
-              //case matchError: scala.MatchError => println("Error: " + matchError.getMessage())
-              //case disjunctLabels: algebra.exceptions.DisjunctLabelsException => println("Error: " + disjunctLabels.getMessage)
-              //case schemaExeption: SchemaException => println("Error: " + schemaExeption.getMessage)
-              //case _: Throwable => println("Unexpected exception")
-            }*/
+              case parseException: parser.exceptions.QueryParseException => println(" Query type unsupported for the moment")
+              case defaultgNotAvalilable: algebra.exceptions.DefaultGraphNotAvailableException => println(" No default graph available")
+              case analysisException: org.apache.spark.sql.AnalysisException => println("Error: " + analysisException.getMessage())
+              case unsupportedOperation: common.exceptions.UnsupportedOperation => println("Error: " + unsupportedOperation.getMessage)
+              case matchError: scala.MatchError => println("Error: " + matchError.getMessage())
+              case disjunctLabels: algebra.exceptions.DisjunctLabelsException => println("Error: " + disjunctLabels.getMessage)
+              case schemaExeption: SchemaException => println("Error: " + schemaExeption.getMessage)
+              case _: Throwable => println("Unexpected exception")
+            }
           }
           else
             println("Invalid Option")

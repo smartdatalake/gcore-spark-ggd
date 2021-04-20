@@ -1,0 +1,27 @@
+[{
+  "groundtruth": "/home/larissacsh/Documents/entityResolution/benchmarkDatasets/AmazonGoogle/Amzon_GoogleProducts_perfectMapping.csv",
+  "sep": ",",
+  "pattern": {
+    "name": "AmazonGoogle",
+    "vertices": [
+      {
+        "label": "ProductGoogle",
+        "variable": "g"
+      },
+      {
+        "label": "ProductAmazon",
+        "variable": "a"
+      }
+    ],
+    "edges": [
+      {
+        "label": "sameAs",
+        "variable": "s",
+        "fromVariable": "a",
+        "toVariable": "g"
+      }
+    ]
+  },
+  "id1": "a$idAmazon",
+  "id2": "g$idGoogle"
+}]

@@ -15,6 +15,8 @@ import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 
 object sHINERrunner {
+//sHINNER Command-line for testing and running automatically
+
 
   /***
    * @param query - spark or jdbc (for Proteus connection)
@@ -40,6 +42,7 @@ object sHINERrunner {
    */
   case class GroundTruthComparison(groundtruth: String, sep: String, pattern: GraphPattern, id1: String, id2: String)
 
+
   def main(args: Array[String]): Unit = {
 
     Logger.getLogger("org").setLevel(Level.OFF)
@@ -48,6 +51,8 @@ object sHINERrunner {
 
     val gcoreRunner = Runner.newRunner
     val ercommand = new ERCommand(gcoreRunner)
+
+    import gcoreRunner.sparkSession.implicits._
 
     if(args.size == 0){
       println("Error: No configuration file available!")
@@ -72,6 +77,7 @@ object sHINERrunner {
       println("Start running Validation and Graph Generation")
       startTime = System.nanoTime()
       resultingGraph = ercommand.graphGeneration()
+      gcoreRunner.catalog.registerGraph(resultingGraph)
       endTime = System.nanoTime()
       println("Time in nanoseconds:" + (endTime - startTime).toString)
     }else if(configuration.query.equals("jdbc")){
@@ -93,18 +99,22 @@ object sHINERrunner {
           println("Error: Graph not available")
         } else {
           try {
-            val s = new SaveGraph()
-            s.saveJsonGraph(gcoreRunner.catalog.graph(resultingGraph.graphName), configuration.savegraph)
+            val s = new SaveGraph
+            s.saveJsonGraph(resultingGraph, configuration.savegraph)
+            //s.saveJsonGraph(gcoreRunner.catalog.graph(resultingGraph.graphName), configuration.savegraph)
             println("The graph "+ resultingGraph.graphName + " was saved on the specified path")
           } catch {
-            case e: Exception => println("Not possible to save " + resultingGraph.graphName + " on specified path")
+            case e: Exception => {
+              println("Not possible to save " + resultingGraph.graphName + " on specified path")
+              e.printStackTrace()
+            }
           }
         }
     }
 
     //set up an api for verifying the ground truth for entity resolution
     if(configuration.verification == true){
-      val resultSet : ArrayBuffer[Result] = new ArrayBuffer[Result]()
+      val resultSet : ArrayBuffer[(String,Result)] = new ArrayBuffer[(String,Result)]()
       val configFile = Source.fromFile(args(1)).mkString
       val json = parse(configFile)
       val groundTruthComparison = json.extract[List[GroundTruthComparison]]
@@ -122,10 +132,29 @@ object sHINERrunner {
           (x.getAs("id1").toString, x.getAs("id2").toString)
         })
         val result = erEvaluation.compareGroundTruth(arrayIds)
-        resultSet += result
+        val pair = (g.groundtruth, result)
+        resultSet += pair
       }
-      //val resultAll = resultSet.zipWithIndex
-      erEvaluation.saveGroundTruthComparison(resultSet.toArray, configuration.verificationpath)
+      //save Results to configured Path
+      saveVerificationResults(resultSet, configuration.verificationpath)
+    }
+
+    def saveVerificationResults(resultSet: ArrayBuffer[(String, Result)],path: String) : Unit = {
+      try{
+        val results = resultSet.map(x => {
+          (x._1.toString , x._2.truePos , x._2.falsePos ,x._2.trueNeg , x._2.falseNeg)
+        }).toDF("groundtruth", "true-pos", "false-pos", "true-neg", "false-neg")
+        results
+          .repartition(1)
+          .write
+          .option("header", true)
+          .csv(path)
+      } catch {
+        case e: Exception => {
+          println("Not possible to save to ground truth")
+          e.printStackTrace()
+        }
+      }
     }
 
   }

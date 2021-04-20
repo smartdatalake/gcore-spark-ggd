@@ -7,7 +7,7 @@ import org.apache.spark.sql.types.{DataType, DoubleType, FloatType, IntegerType,
 
 import scala.collection.mutable.ArrayBuffer
 
-object ProteusUtils{
+object JDBCUtils{
 
   /**
    * Extract Schema from a result set and uses sep as the separator between variable and colummname

@@ -6,16 +6,9 @@ import SimSQL.parser.SimCatalystSqlParser
 //import SimSQL.parser.SimCatalystSqlParser
 import SimSQL.physicalPlan.SimJoinSelection
 import compiler.{CompileContext, Compiler, GcoreCompiler}
-import ggd.{GGDSet, GraphGenDep, ViolatedV2, ggdValidationV2}
-import org.apache.jena.rdf.model.{Model, ModelFactory, RDFList, RDFNode, RDFReader, StmtIterator}
-import org.apache.spark.sql.{DataFrame, SparkSession, SparkSessionExtensions}
-import org.apache.spark.{SparkConf, SparkContext}
-import org.w3c.dom.traversal.NodeIterator
-import schema.{Catalog, PathPropertyGraph}
-import spark.{Directory, GraphSource, SaveGraph, SparkCatalog, SparkGraph}
-import utils.{GroundTruthSource, Result}
-
-import scala.reflect.io.Path
+import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
+import schema.Catalog
+import spark.SparkCatalog
 
 
 object Runner {

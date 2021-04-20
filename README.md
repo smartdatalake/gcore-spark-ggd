@@ -13,9 +13,23 @@ The project uses the G-Core interpreter on Spark for querying the defined graph 
 
 Some operators on the G-Core interpreter used for the GGDs were added: SELECT, UNION and OPTIONAL queries. To add these operators we changed the Spoofax language file as well as on the compilation class file of these new types of queries.
 
-In order to validate the differential constraints in the GDDs we added a similarity join operator for Jaccard and Edit Similarity by using the methods from Dima (disponible at https://github.com/TsinghuaDatabaseGroup/Dima) and the Vernica Join method. This project needs the spark-2.4-Sim also available in the SmartDataLake repository which contains these similarity operators.
-
 This project is still under development.
+
+## Similarity Join
+
+We added similarity join operators to SparkSQL using the Spark extensions API.
+
+The similarity join operators included are:
+* Dima - Edit Similarity
+* Dima - Jaccard Similarity
+* Vernica Join - Jaccard Similarity Join- (code provided by Athena Research Center)
+
+The Dima similarity join algorithms are belong to the Tsinghua Database Group github repository (https://github.com/TsinghuaDatabaseGroup/Dima).
+The methods from Dima were merged into our project, we made very few modifications on the source code in order to integrate to our project. We also include the NOTICE file from Dima and Spark in our repository, following their License rules. 
+
+The Vernica Similarity Join algorithm for Jaccard Similarity Join was implemented by Athena Research Center and integrated as a physical operator in Spark.
+
+For more information check our manual pdf file (sHINERmanual.pdf) or for the source code check the SimSQL package in our project.
 
 
 ## To build and run

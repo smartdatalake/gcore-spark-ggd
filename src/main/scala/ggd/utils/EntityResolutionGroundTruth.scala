@@ -42,7 +42,7 @@ class EntityResolutionGroundTruth {
     array.collect()
   }
 
-  def saveGroundTruthComparison(resultSet: Array[Result], path: String): Unit = {
+  /*def saveGroundTruthComparison(resultSet: Array[Result], path: String): Unit = {
     if(path == ""){
       println("Path is not specified")
       return
@@ -51,6 +51,7 @@ class EntityResolutionGroundTruth {
     val csvheader = List("result-id", "true-positive", "false-positive", "true-negative", "false-negative")
     try {
       val filewriter = new FileWriter(path)
+      println("Path!!!" + path)
       filewriter.write(csvheader.mkString(",") + "\n")
       filewriter.write(resultAll.map(x => {
          x._2.toString + "," + x._1.truePos + "," + x._1.falsePos +","+x._1.trueNeg + "," + x._1.falseNeg
@@ -58,7 +59,7 @@ class EntityResolutionGroundTruth {
     } catch {
       case e: Exception => println("Couldn't write the file to this path")
     }
-  }
+  }*/
 
   def prettyPrintResults(res: Result): Unit = {
     println("True positive = " + res.truePos)

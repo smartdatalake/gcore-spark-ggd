@@ -13,7 +13,7 @@ import spark.{SparkCatalog, SparkGraph}
 import spark.examples.SocialGraph
 
 @RunWith(classOf[JUnitRunner])
-class ValidationTest extends FunSuite {
+class GraphGenerationTest extends FunSuite {
 
   val gcoreRunner: GcoreRunner = Runner.newRunner //init gcore
   catalog.setDefaultGraph("dbpediaURL")
@@ -26,22 +26,14 @@ class ValidationTest extends FunSuite {
   val ggds : GGDSet = new GGDSet() //instantiate Property graph
   ggds.loadGGDs("/Users/larissashimomura/Documents/phd/GGDjson/ggddbpediaurl/config.json")
 
-   test("Violated GGDs"){
-     gcoreRunner.catalog.registerGraph(dbpedia) //transform to gcore
-     val ggdcheck : ggdValidation = new ggdValidation(gcoreRunner)
-     val expectedNumberofViolated = dbpedia.vertexData.head.data.count() //all of them
-     val violated = ggdcheck.validationV2(ggds.AllGGDs.head)
-     assert(violated.data.size == expectedNumberofViolated)
-   }
-
-   test("Non violated GGDs"){
-     gcoreRunner.catalog.registerGraph(dbpediaSame)
-     val ggdcheck : ggdValidation = new ggdValidation(gcoreRunner)
-     val violated = ggdcheck.validationV2(ggds.AllGGDs.head)
-     assert(violated.data.size == 0)
-   }
-
-
+  test("Generated GGDs"){
+    gcoreRunner.catalog.registerGraph(dbpedia) //transform to gcore
+    val ggdcheck : ggdValidation = new ggdValidation(gcoreRunner)
+    val expectedNumberofViolated = dbpedia.vertexData.head.data.count() //all of them
+    val generated = ggdcheck.graphGenerationV3(ggds.AllGGDs.head)
+    assert(generated.edgeData.head.data.size == expectedNumberofViolated)
   }
+
+}
 
 

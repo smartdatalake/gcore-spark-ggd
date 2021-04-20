@@ -18,15 +18,6 @@ class loadJDBC(gcoreRunner: GcoreRunner) {
   var user: String = ""
   var password: String = ""
 
-  def readTableSparkJDBC(tableName: String, url: String): DataFrame = {
-    gcoreRunner.sparkSession.read.format("jdbc")
-      .option("url", url) //"jdbc:avatica:remote:url=http://diascld32.iccluster.epfl.ch:18010;serialization=PROTOBUF")
-      .option("dbtable", tableName)
-      .option("user", user)
-      .option("password", password)
-      .load()
-  }
-
   def parseResultSet(rs: ResultSet): Row = {
     val rsmd = rs.getMetaData
     val columnCount = rsmd.getColumnCount
@@ -34,7 +25,6 @@ class loadJDBC(gcoreRunner: GcoreRunner) {
     var header = new ArrayBuffer[(String, String)]()
     for (i <- 1 to columnCount) {
       header += ((rsmd.getColumnName(i), rsmd.getColumnTypeName(i)))
-      // Do stuff with name
     }
     val resultSetRecord = header.map(c => {
       if (rs.getString(c._1).endsWith("\n")) {
@@ -49,7 +39,6 @@ class loadJDBC(gcoreRunner: GcoreRunner) {
         }
       } else {
         val value = rs.getString(c._1)
-        //valueConversionScala(c._2, str)
         c._2.toLowerCase match {
           case "int" => value.asInstanceOf[Int]
           case "varchar" => value.asInstanceOf[String]
@@ -123,17 +112,8 @@ class loadJDBC(gcoreRunner: GcoreRunner) {
     //val graphName = configPath.split(File.separator).apply(configPath.split(File.separator).size-1)
     //println("Graph name:" + graphName)
     gcoreRunner.catalog.registerGraph(graph)
-    //gcoreRunner.catalog.registerGraph(cat.graph(graphName))
   }
 
-  /*def valueConversionScala(typeName: String, value: String): Any = {
-    if(typeName.toLowerCase == "int") return value.asInstanceOf[Int]
-    if (typeName.toLowerCase == "varchar")  return value.asInstanceOf[String]
-    if (typeName.toLowerCase() == "float") return value.asInstanceOf[Float]
-    if (typeName.toLowerCase() == "double") return value.asInstanceOf[Double]
-    if(typeName.toLowerCase() == "bigint") return value.asInstanceOf[Long]
-    return value.asInstanceOf[String]
-  }*/
 
   def loadSparkJDBC(configPath: String): Unit = {
     var sparkCatalog: SparkCatalog = SparkCatalog(gcoreRunner.sparkSession)
@@ -151,7 +131,6 @@ class loadJDBC(gcoreRunner: GcoreRunner) {
     //val graphName = configPath.split(File.separator).apply(configPath.split(File.separator).size-1)
     //println("Graph name:" + graphName)
     gcoreRunner.catalog.registerGraph(graph)
-    //gcoreRunner.catalog.registerGraph(cat.graph(graphName))
   }
 
   def loadGraphSparkJDBC(config: GraphJsonConfig, source: GraphSource): SparkGraph = {

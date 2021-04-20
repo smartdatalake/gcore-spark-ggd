@@ -10,29 +10,27 @@ import scala.io.Source
 
 case class SimilarityAPI(gcoreRunner: GcoreRunner) {
 
+
   def SimJoin(left: DataFrame, right: DataFrame, leftKey: String, rightKey: String,
               function: String, threshold: Double, operator: String): DataFrame = {
-    //def SimJoin(left: DataFrame, right: DataFrame, leftKey: Column, rightKey: Column,
-    //            function: String, threshold: Double, operator: String): DataFrame = {
-    left.createOrReplaceTempView("left")
-    right.createOrReplaceTempView("right")
+    val leftRenamed = left.withColumnRenamed(leftKey, "left_key_sim").createOrReplaceTempView("left")
+    val rightRenamed = right.withColumnRenamed(rightKey, "right_key_sim").createOrReplaceTempView("right")
+    //the spark.sql function is not identifying correclty columns with alias using var$column format --> quick fix:
     function.toLowerCase match {
       case "jaccardsimilarity" =>{
-        //println(" JACCARD SIM AST")
-        //val condition = JaccardSimilarity(leftKey.expr, rightKey.expr, Literal(operator), Literal(threshold))
-        //SimilarityJoin(left.logicalPlan, right.logicalPlan, joinType = Similarity, Some(condition))
-        gcoreRunner.sparkSession.sql("SELECT * FROM left SIMILARITY JOIN right USING JACCARDSIMILARITY(left."+leftKey+", right."+rightKey+") " + operator +" "+threshold)
+        gcoreRunner.sparkSession.sql("SELECT * FROM left SIMILARITY JOIN right USING JACCARDSIMILARITY(left.left_key_sim, right.right_key_sim) " + operator +" "+threshold)
+          .withColumnRenamed("left_key_sim", leftKey)
+          .withColumnRenamed("right_key_sim", rightKey)
       }
       case "selfjaccardsimilarity" =>{
-        //val condition = SelfJaccardSimilarity(leftKey.expr, Literal(operator), Literal(threshold))
-        //SimilarityJoin(logicalPlan, right.logicalPlan, joinType = Similarity, Some(condition))
-        gcoreRunner.sparkSession.sql("SELECT * FROM left SIMILARITY JOIN right USING JACCARDSIMILARITY(left."+leftKey+", right."+rightKey+") " + operator +" "+threshold)
+        gcoreRunner.sparkSession.sql("SELECT * FROM left SIMILARITY JOIN right USING JACCARDSIMILARITY(left.left_key_sim, right.right_key_sim) " + operator +" "+threshold)
+          .withColumnRenamed("left_key_sim", leftKey)
+          .withColumnRenamed("right_key_sim", rightKey)
       }
       case "editsimilarity" =>
-        //val condition = EditSimilarity(leftKey.expr, rightKey.expr, Literal(operator), Literal(threshold))
-        //SimilarityJoin(logicalPlan, right.logicalPlan, joinType = Similarity, Some(condition))
-        gcoreRunner.sparkSession.sql("SELECT * FROM left SIMILARITY JOIN right USING EDITSIMILARITY(left."+leftKey+", right."+rightKey+") " + operator +" "+threshold)
-    }
+        gcoreRunner.sparkSession.sql("SELECT * FROM left SIMILARITY JOIN right USING EDITSIMILARITY(left.left_key_sim, right.right_key_sim) " + operator +" "+threshold)
+          .withColumnRenamed("left_key_sim", leftKey)
+          .withColumnRenamed("right_key_sim", rightKey)    }
   }
 
   //Not recommended for big datasets, just for testing purposes
@@ -86,9 +84,7 @@ case class SimilarityAPI(gcoreRunner: GcoreRunner) {
     /*res.truePos = groundTruth.intersect(results).size
     res.falsePos = results.diff(groundTruth).size
     res.falseNeg = groundTruth.diff(results).size
-    res.trueNeg = 0 //not used yet
-    //verificar com a lista de groundtruth e criar result
-    res*/
+    res.trueNeg = 0 //not used yet*/
     Result(groundTruth.intersect(results).size, 0, results.diff(groundTruth).size, groundTruth.diff(results).size)
   }
 
@@ -108,9 +104,7 @@ case class SimilarityAPI(gcoreRunner: GcoreRunner) {
     /*res.truePos = groundTruth.intersect(results).size
     res.falsePos = results.diff(groundTruth).size
     res.falseNeg = groundTruth.diff(results).size
-    res.trueNeg = 0 //not used yet
-    //verificar com a lista de groundtruth e criar result
-    return res*/
+    res.trueNeg = 0 //not used yet*/
     Result(groundTruth.intersect(results).size, 0, results.diff(groundTruth).size, groundTruth.diff(results).size)
   }
 

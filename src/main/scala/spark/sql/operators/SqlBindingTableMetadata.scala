@@ -24,7 +24,7 @@ import java.sql.{Connection, ResultSet, Statement}
 
 import algebra.expressions.Reference
 import algebra.target_api.BindingTableMetadata
-import ggd.utils.ProteusUtils
+import ggd.utils.JDBCUtils
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.types.{StructField, StructType}
 import spark.sql.SqlQuery
@@ -85,8 +85,8 @@ case class SqlBindingTableMetadata(sparkSchemaMap: Map[Reference, StructType],
     //val newQuery = "SELECT p.id AS p0_0id, p.price AS p0_0price, x.id AS x0_0id, x.fromId AS x0_0fromId FROM ProductGoogle p, producedbyGoogle x WHERE p.id = x.fromId LIMIT 20"
     //val rs:ResultSet =stmt.executeQuery(newQuery);
     val rs:ResultSet = stmt.executeQuery(query)
-    val schema = ProteusUtils.extractSchema(rs, "0_0")
-    ProteusUtils.parallelizeResultSet(rs, sparkSession, schema)
+    val schema = JDBCUtils.extractSchema(rs, "0_0")
+    JDBCUtils.parallelizeResultSet(rs, sparkSession, schema)
   }
 
   /**

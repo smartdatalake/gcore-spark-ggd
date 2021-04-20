@@ -18,10 +18,7 @@ object GGDtoGCoreParser {
     val gcoreQuery: List[gcoreQuery]  = gpList.map( x => x.parseToGCoreSelect())
     var matchClause: String = gcoreQuery.map(_.pattern).mkString(",")
     var selectClause: String = gcoreQuery.map(_.variables).map(_.mkString(",")).mkString(",")
-    //println("selectClause::" + selectClause)
-    //println("matchClause::" + matchClause)
     val query: String = "SELECT " + selectClause + " MATCH " + matchClause
-    //val query : String = "SELECT * MATCH" + matchClause
     query
   }
 
@@ -38,8 +35,6 @@ object GGDtoGCoreParser {
     val gcoreQuery: List[gcoreQuery] = gpList.map(x => x.parseToGCoreConstructCommon(common))
     var matchClause: String = gcoreQuery.map(_.pattern).mkString(",")
     var selectClause: String = gcoreQuery.map(_.variables).map(_.mkString(",")).mkString(",")
-    //println("selectClause::" + selectClause)
-    //println("matchClause::" + matchClause)
     return selectMatch(selectClause, matchClause)
   }
 
