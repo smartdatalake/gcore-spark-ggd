@@ -37,7 +37,7 @@ class ERCommand(gcoreRunner: GcoreRunner){
   }
 
   def runSelectQueryJDBC(query: String): DataFrame = {
-    val df = gcoreRunner.compiler.compilerProteus(query, loadP.con).asInstanceOf[DataFrame]
+    val df = gcoreRunner.compiler.compilerJDBC(query, loadP.con).asInstanceOf[DataFrame]
     df
   }
 
@@ -47,7 +47,7 @@ class ERCommand(gcoreRunner: GcoreRunner){
   }
 
   def runConstructQueryJDBC(query: String) : PathPropertyGraph = {
-    val graph = gcoreRunner.compiler.compilerProteus(query, loadP.con).asInstanceOf[PathPropertyGraph]
+    val graph = gcoreRunner.compiler.compilerJDBC(query, loadP.con).asInstanceOf[PathPropertyGraph]
     return graph
   }
 
@@ -59,7 +59,7 @@ class ERCommand(gcoreRunner: GcoreRunner){
     loadP.closeConnection()
   }
 
-  def loadGraphProteus(configPath: String): Unit = {
+  def loadGraphJDBC(configPath: String): Unit = {
     loadP.loadSparkJDBC(configPath)
   }
 
@@ -150,17 +150,13 @@ class ERCommand(gcoreRunner: GcoreRunner){
     while(changesInGraph){
       changesInGraph = false
       for(ggd <- ggds.AllGGDs) {
-        //val violated: ViolatedV2 = ggdValV2.ValidationV2(ggd)
         val violated: Violated = ggdValV2.ValidationV3(ggd)
         //println("Number of violated matches:" + violated.data.count())
-        //val violatedTest = ViolatedV2(violated.data.limit(1), ggd)
         if (!violated.data.isEmpty) {
           changesInGraph = true
           println("Violated GGD - graph generation to validate it")
           generatedGraphGGD = ggdValV2.graphGenerationV3(violated)
           println(generatedGraphGGD.schemaString)
-          //val saveGraph = SaveGraph()
-          //saveGraph.saveJsonGraph(generatedGraphGGD, gcoreRunner.catalog.databaseDirectory)
         }//else changesInGraph = false
       }
     }
@@ -169,8 +165,30 @@ class ERCommand(gcoreRunner: GcoreRunner){
     return generatedGraphGGD
   }
 
-  def graphGenerationJDBC(): PathPropertyGraph = {
-    null
+
+  //inputs path to save data on jdbc
+  def graphGenerationJDBC(path: String, raw_uri: String, raw_token: String, raw_save: String): PathPropertyGraph = {
+    var generatedGraphGGD: PathPropertyGraph = PathPropertyGraph.empty
+    var changesInGraph: Boolean = true
+    //gcoreRunner.sparkSession.conf.set("spark.sql.crossJoin.enabled", true)
+    gcoreRunner.catalog.setDefaultGraph(ggds.AllGGDs.head.targetGP.head.name)
+    while(changesInGraph){
+      changesInGraph = false
+      for(ggd <- ggds.AllGGDs) {
+        val violated = ggdValV2.ValidationProteus(ggd, loadP.con)
+        if (!violated.data.isEmpty) {
+          changesInGraph = true
+          println("Violated GGD - graph generation to validate it")
+          //When using Proteus the graph generation assumes that everything that is not on the result of the validation needs to be generated
+          //(discarding the need to use optional queries from jdbc and creating locally the resulting graph, only the portion that needs to be generation)
+          generatedGraphGGD = ggdValV2.graphGenerationProteus(violated, loadP.con, path, raw_uri, raw_token, raw_save)
+          println(generatedGraphGGD.schemaString)
+        }//else changesInGraph = false
+      }
+    }
+    resultInfo = ggdValV2.genInfo
+    gcoreRunner.catalog.registerGraph(generatedGraphGGD)
+    generatedGraphGGD
   }
 
 

@@ -51,21 +51,20 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
     var targetResult: DataFrame = gcoreRunner.sparkSession.emptyDataFrame
     if(targetQuery == ""){ //case for empty target -> only source variables in the target constraint
       var filtered = result.filter(ConstraintFilter(ggd.targetCons)) //source rows that satisfies target constraints
-     // val diff = result.except(filtered) //retira as linhas do dataframe que satisfazem o target constraints (sobra apenas as rows que não satisfazem)
       return new Violated(result.except(filtered), ggd)
     }
     var caughtExeception: Boolean = false
-      try{
-        targetResult = gcoreRunner.compiler.compilePropertyGraph(targetQuery).asInstanceOf[DataFrame]//.cache()
-      }catch {
-        case nonExistingLabel : algebra.exceptions.DisjunctLabelsException => {
-          return new Violated(result, ggd)
-        }
-        case e: Exception => {
-          e.printStackTrace()
-          return new Violated(result, ggd)
-        }
+    try{
+      targetResult = gcoreRunner.compiler.compilePropertyGraph(targetQuery).asInstanceOf[DataFrame]//.cache()
+    }catch {
+      case nonExistingLabel : algebra.exceptions.DisjunctLabelsException => {
+        return new Violated(result, ggd)
       }
+      case e: Exception => {
+        e.printStackTrace()
+        return new Violated(result, ggd)
+      }
+    }
     if(targetResult.isEmpty) return Violated(result, ggd)
     val commonVar: List[String] = result.columns.map(_.split('$').apply(0)).intersect(targetResult.columns.map(_.split('$').apply(0))).distinct.toList
     if(!commonVar.isEmpty){
@@ -92,6 +91,23 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
     }
   }
 
+  def graphGenerationProteus(violatedGGDs: Violated, connection: Connection, path: String, raw_uri: String, raw_token: String, raw_save: String): PathPropertyGraph = {
+    val y: GraphGenerationV3 = new GraphGenerationV3(gcoreRunner)
+    val graph: SparkGraph = y.jdbcGeneration(violatedGGDs.ggd, violatedGGDs.data, connection, path, raw_uri, raw_token, raw_save)
+    genInfo = y.generationInformation
+    graph.vertexData.foreach(a => a.graphName = graph.graphName)
+    graph.edgeData.foreach(a => a.graphName = graph.graphName)
+    graph.pathData.foreach(a => a.graphName = graph.graphName)
+    val unionGraph = unionTargetGraph(graph, violatedGGDs.ggd.targetGP.head.name)
+    println("Graph unioned:::")
+    println(unionGraph.schemaString)
+    gcoreRunner.catalog.unregisterGraph(violatedGGDs.ggd.targetGP.head.name)
+    gcoreRunner.catalog.registerGraph(unionGraph)
+    gcoreRunner.catalog.setDefaultGraph(unionGraph.graphName)
+    println(gcoreRunner.catalog.graph(unionGraph.graphName).schemaString)
+    unionGraph
+  }
+
   //graph generation function
   def graphGenerationV3(violatedGGDs: Violated) : PathPropertyGraph = {
     val y: GraphGenerationV3 = new GraphGenerationV3(gcoreRunner)
@@ -106,47 +122,38 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
     gcoreRunner.catalog.unregisterGraph(violatedGGDs.ggd.targetGP.head.name)
     gcoreRunner.catalog.registerGraph(unionGraph)
     gcoreRunner.catalog.setDefaultGraph(unionGraph.graphName)
-    //val save = new SaveGraph()
-    //save.saveJsonGraph(unionGraph, "/media/larissacsh/Data/SDLdatasets/keywordsResults2/")
-    //union with previous graph
-    val genInfoJson =  Serialization.write(genInfo)
-    new PrintWriter("/media/larissacsh/Data/SDLdatasets/keywordsResults2info.json") { write(genInfoJson); close }
+    //val genInfoJson =  Serialization.write(genInfo)
+    //new PrintWriter("/media/larissacsh/Data/SDLdatasets/keywordsResults2info.json") { write(genInfoJson); close }
     println(gcoreRunner.catalog.graph(unionGraph.graphName).schemaString)
     unionGraph
   }
 
-    def unionTargetGraph(graph: SparkGraph, targetGraph: String) : SparkGraph = {
-      val catalogGraph: SparkGraph =  gcoreRunner.catalog.graph(targetGraph).asInstanceOf[SparkGraph]
-      catalogGraph.vertexData.foreach(a => a.graphName = catalogGraph.graphName)
-      catalogGraph.edgeData.foreach(a => a.graphName = catalogGraph.graphName)
-      catalogGraph.pathData.foreach(a => a.graphName = catalogGraph.graphName)
-      //create Graph
-      val vData: Seq[Table[DataFrame]] = unionData(graph.vertexData ++ catalogGraph.vertexData)
-      val eData: Seq[Table[DataFrame]] = unionData(graph.edgeData ++ catalogGraph.edgeData)
-      val pData: Seq[Table[DataFrame]] = unionData(graph.pathData ++ catalogGraph.pathData)
-      //gcoreRunner.catalog.unregisterGraph(catalogGraph)
+  def unionTargetGraph(graph: SparkGraph, targetGraph: String) : SparkGraph = {
+    val catalogGraph: SparkGraph =  gcoreRunner.catalog.graph(targetGraph).asInstanceOf[SparkGraph]
+    catalogGraph.vertexData.foreach(a => a.graphName = catalogGraph.graphName)
+    catalogGraph.edgeData.foreach(a => a.graphName = catalogGraph.graphName)
+    catalogGraph.pathData.foreach(a => a.graphName = catalogGraph.graphName)
+    //create Graph
+    val vData: Seq[Table[DataFrame]] = unionData(graph.vertexData ++ catalogGraph.vertexData)
+    val eData: Seq[Table[DataFrame]] = unionData(graph.edgeData ++ catalogGraph.edgeData)
+    val pData: Seq[Table[DataFrame]] = unionData(graph.pathData ++ catalogGraph.pathData)
+    //gcoreRunner.catalog.unregisterGraph(catalogGraph)
 
-      val resultGeneratedGraph = new SparkGraph {
-        override var graphName: String =  targetGraph//+"UnionedGraph"
-        //seq of seqs
-        override def vertexData: Seq[Table[DataFrame]] = vData
+    val resultGeneratedGraph = new SparkGraph {
+      override var graphName: String =  targetGraph//+"UnionedGraph"
+      //seq of seqs
+      override def vertexData: Seq[Table[DataFrame]] = vData
 
-        override def edgeData: Seq[Table[DataFrame]] = eData
-        override def pathData: Seq[Table[DataFrame]] = pData
-        override def edgeRestrictions: LabelRestrictionMap = graph.edgeRestrictions.union(catalogGraph.edgeRestrictions)
+      override def edgeData: Seq[Table[DataFrame]] = eData
+      override def pathData: Seq[Table[DataFrame]] = pData
+      override def edgeRestrictions: LabelRestrictionMap = graph.edgeRestrictions.union(catalogGraph.edgeRestrictions)
 
-        override def storedPathRestrictions: LabelRestrictionMap = graph.storedPathRestrictions.union(catalogGraph.storedPathRestrictions)
-
-        /*override def vertexSchema: EntitySchema = generatedGraphs.reduce((a,b) => a.vertexSchema.union(b.vertexSchema))
-
-        override def pathSchema: EntitySchema = generatedGraphs.reduce((a,b) => a.pathSchema.union(b.pathSchema))
-
-        override def edgeSchema: EntitySchema = generatedGraphs.reduce((a,b) => a.edgeSchema.union(b.edgeSchema))*/
-      }
-      resultGeneratedGraph
+      override def storedPathRestrictions: LabelRestrictionMap = graph.storedPathRestrictions.union(catalogGraph.storedPathRestrictions)
     }
+    resultGeneratedGraph
+  }
 
-    def unionData(buffer: Seq[Table[SparkGraph#StorageType]]) : Seq[Table[DataFrame]] = {
+  def unionData(buffer: Seq[Table[SparkGraph#StorageType]]) : Seq[Table[DataFrame]] = {
     val seqTable: ArrayBuffer[Table[DataFrame]] = new ArrayBuffer[Table[DataFrame]]()
     for(a<-buffer){
       for(b<-buffer){
@@ -160,7 +167,7 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
         seqTable += a
       }
     }
-   seqTable
+    seqTable
   }
 
   //check the generation of only the violated data -> only for unit tests
@@ -191,12 +198,11 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
     if(ggd.sourceGP.size > 1){
       val queries = ggd.sourceGP.map(x => GGDtoGCoreParser.parseGCoreSelectMatch(List(x)))
       val graphPatterns = queries.map(m => "SELECT * MATCH " + m.matchClause).toArray
-      //val graphPatterns = gcoreSelectMatch.matchClause.split(",").map(m => "SELECT * MATCH " + m) //array of match clauses
-      queryResults = graphPatterns.map(query => gcoreRunner.compiler.compilerProteus(query, con).asInstanceOf[DataFrame].persist(StorageLevel.MEMORY_AND_DISK_SER))
+      queryResults = graphPatterns.map(query => gcoreRunner.compiler.compilerJDBC(query, con).asInstanceOf[DataFrame].persist(StorageLevel.MEMORY_AND_DISK_SER))
       result = filteredResults(ggd, queryResults, ggd.sourceCons)
     }else{
       val query = "SELECT * MATCH " + gcoreSelectMatch.matchClause
-      queryResults = Array(gcoreRunner.compiler.compilerProteus(query, con).asInstanceOf[DataFrame])
+      queryResults = Array(gcoreRunner.compiler.compilerJDBC(query, con).asInstanceOf[DataFrame])
       result = filteredResults(ggd, queryResults, ggd.sourceCons)
     }
     println("filtered Results!!")
@@ -221,9 +227,7 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
     }
     var caughtExeception: Boolean = false
     try{
-      //targetResult = filteredResultsTarget(selectMatchTarget, ggd)
-      targetResult =  gcoreRunner.compiler.compilerProteus(targetQuery, con).asInstanceOf[DataFrame]//.cache()
-      //targetResult = gcoreRunner.compiler.compilePropertyGraph(targetQuery).asInstanceOf[DataFrame]//.cache()
+      targetResult =  gcoreRunner.compiler.compilerJDBC(targetQuery, con).asInstanceOf[DataFrame]//.cache()
     }catch {
       case nonExistingLabel : algebra.exceptions.DisjunctLabelsException => {
         return new Violated(result, ggd)
@@ -239,8 +243,6 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
     //get common variables for constraint checking + getting all the data needed for the ggds checking in one df
     val commonVar: List[String] = result.columns.map(_.split('$').apply(0)).intersect(targetResult.columns.map(_.split('$').apply(0))).distinct.toList
     if(!commonVar.isEmpty){
-      //val commonColumns: List[String] = commonVar.map( x => x + "$id").diff(Seq("sid$id"))
-      //val commonColumnsAll: List[String] = result.columns.intersect(targetResult.columns).distinct.toList
       val filteredSourceTarget = DataFrameUtils.removeDuplicateColumns(filteredResults(ggd, Array(targetResult, result), ggd.targetCons))
       //val filteredSourceTarget = filteredTargetResults(ggd, targetResult, result, ggd.targetCons)
       val variables = ggd.sourceGP.map(_.vertices.map(_.variable)).flatten ++ ggd.sourceGP.map(_.edges.map(_.variable)).flatten
@@ -278,7 +280,6 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
     if(ggd.sourceGP.size > 1){
       val queries = ggd.sourceGP.map(x => GGDtoGCoreParser.parseGCoreSelectMatch(List(x)))
       val graphPatterns = queries.map(m => "SELECT * MATCH " + m.matchClause).toArray
-      //val graphPatterns = gcoreSelectMatch.matchClause.split(",").map(m => "SELECT * MATCH " + m) //array of match clauses
       queryResults = graphPatterns.map(query => gcoreRunner.compiler.compilePropertyGraph(query).asInstanceOf[DataFrame].persist(StorageLevel.MEMORY_AND_DISK_SER)) //sequence of dataframes with graph patterns results
       result = filteredResults(ggd, queryResults, ggd.sourceCons)
     }else{
@@ -308,7 +309,6 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
     }
     var caughtExeception: Boolean = false
     try{
-      //targetResult = filteredResultsTarget(selectMatchTarget, ggd)
       targetResult = gcoreRunner.compiler.compilePropertyGraph(targetQuery).asInstanceOf[DataFrame]//.cache()
     }catch {
       case nonExistingLabel : algebra.exceptions.DisjunctLabelsException => {
@@ -325,10 +325,7 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
     //get common variables for constraint checking + getting all the data needed for the ggds checking in one df
     val commonVar: List[String] = result.columns.map(_.split('$').apply(0)).intersect(targetResult.columns.map(_.split('$').apply(0))).distinct.toList
     if(!commonVar.isEmpty){
-      //val commonColumns: List[String] = commonVar.map( x => x + "$id").diff(Seq("sid$id"))
-      //val commonColumnsAll: List[String] = result.columns.intersect(targetResult.columns).distinct.toList
       val filteredSourceTarget = DataFrameUtils.removeDuplicateColumns(filteredResults(ggd, Array(targetResult, result), ggd.targetCons))
-      //val filteredSourceTarget = filteredTargetResults(ggd, targetResult, result, ggd.targetCons)
       val variables = ggd.sourceGP.map(_.vertices.map(_.variable)).flatten ++ ggd.sourceGP.map(_.edges.map(_.variable)).flatten
       val sourceColumnsId = variables.map(x =>  x + "$id")
       val filteredSource = filteredSourceTarget.select(sourceColumnsId.head, sourceColumnsId.tail:_*)//.dropDuplicates(sourceColumnsId.head, sourceColumnsId.tail:_*)
@@ -341,7 +338,7 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
       Violated(violatedSource, ggd)
     }else {
       val targetNoCommon = filteredResults(ggd, Array(targetResult), ggd.targetCons)
-        //targetResult.filter(ConstraintFilter(ggd.targetCons))
+      //targetResult.filter(ConstraintFilter(ggd.targetCons))
       if(targetNoCommon.isEmpty){
         Violated(result, ggd)
       }else{
@@ -352,8 +349,6 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
 
   //New contraint filter function -> calls similarity joins and constraints filter
   def filteredResults(ggd: GraphGenDep, queryResults: Array[DataFrame], ggdCons: List[Constraint]) : DataFrame = {
-    //println("Size of Result of source query:" + queryResults.map(d => d.count()).mkString(","))//.reduce((a,b) => a+b))
-    //println(ggd.prettyPrint())
     var result = Seq[DataFrame]()
     var constraintsForSimJoin = new ArrayBuffer[Constraint]()
     if(ggdCons.isEmpty){
@@ -366,9 +361,6 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
         if(cons.distance == "edit"){
           constraintsForSimJoin += cons
         }
-        /*if(cons.distance == "euclidean"){
-          constraintsForSimJoin += cons
-        }*///euclidean not working as physical operator yet
       }
       result = SimJoinHandler(constraintsForSimJoin, queryResults)
     }
@@ -397,7 +389,6 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
       val columnCons = Seq(c.var1+"$"+c.attr1, c.var2+"$"+c.attr2)
       val dataFramesInCons : Seq[DataFrame] = queryResults.filter(x => x.columns.intersect(columnsCons).size > 0)
       dataFramesInCons.foreach(r => r.show(10))
-      //val dataFramesInCons : Seq[DataFrame] = dataFramesInCons_temp.map(df => df.filter())
       var distanceMeasure = "jaccardsimilarity"
       if(c.distance == "edit") distanceMeasure = "editsimilarity"
       if(dataFramesInCons.size == 2){
@@ -405,13 +396,8 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
         if(dataFramesInCons.head.columns.contains(columnCons.head)){
           result= RunSimilarityJoin(dataFramesInCons.apply(0), dataFramesInCons.apply(1), columnCons.apply(0), columnCons.apply(1),c.threshold, distanceMeasure, "simjoin")
           result.show(10)
-          /*result = dataFramesInCons.apply(0).SimJoin(dataFramesInCons.apply(1), dataFramesInCons.apply(0).col(columnCons.apply(0)),
-            dataFramesInCons.apply(1).col(columnCons.apply(1)), distanceMeasure, c.threshold, c.operator).dropDuplicates()*/
         }else{
           result = RunSimilarityJoin(dataFramesInCons.apply(1), dataFramesInCons.apply(0), columnCons.apply(1), columnCons.apply(0), c.threshold, distanceMeasure, "simjoin")
-          /*result = dataFramesInCons.apply(1).filter(col(columnCons.apply(0)).isNotNull).SimJoin(dataFramesInCons.apply(0).filter(col(columnCons.apply(1)).isNotNull), dataFramesInCons.apply(0).col(columnCons.apply(1)),
-            dataFramesInCons.apply(1).col(columnCons.apply(0)), distanceMeasure, c.threshold, c.operator).dropDuplicates()*/
-        //  println("Result size else:" + result.count())
         }
         dfResults += result
       }else if(dataFramesInCons.size == 1){ //self similarity
@@ -434,29 +420,24 @@ case class ggdValidationV2(gcoreRunner: GcoreRunner) {
     val simjoiAPI = new SimilarityAPI(gcoreRunner)
     var result: DataFrame = gcoreRunner.sparkSession.emptyDataFrame
     if(distanceMeasure == "jaccardsimilarity"){
-      if(df1_1.count() < 10000){
-        //result = df1_1.SimJoin(df2_2, df1_1(col1), df2_2(col2), distanceMeasure, threshold, "<").dropDuplicates()//.cache()
-        result = simjoiAPI.SimJoin(df1, df2, col1, col2, distanceMeasure, threshold, "<")
-      }else{
+      //if(df1_1.count() < 10000){
+      //result = df1_1.SimJoin(df2_2, df1_1(col1), df2_2(col2), distanceMeasure, threshold, "<").dropDuplicates()//.cache()
+      result = simjoiAPI.SimJoin(df1, df2, col1, col2, distanceMeasure, threshold, "<")
+      /*}else{
         val vernica = new VernicaJoinAthena(threshold, gcoreRunner.sparkSession)
         result = vernica.vernicaJoin(df1_1.map(x => (x.getAs(id1).toString, x.getAs(col1).toString)).rdd,
           df2_2.map(x => (x.getAs(id2).toString, x.getAs(col2).toString)).rdd)
-      }
+      }*/
     }else if(distanceMeasure == "editsimilarity"){
       //result = df1_1.SimJoin(df2_2, df1_1(col1), df2_2(col2), distanceMeasure, threshold, "<").dropDuplicates()//.cache()
       result = simjoiAPI.SimJoin(df1, df2, col1, col2, distanceMeasure, threshold, "<")
     }
-    //val vernica = new VernicaJoinAthena(threshold, gcoreRunner.sparkSession)
-    //val result = vernica.vernicaJoin(df1_1.map(x => (x.getAs(id1).toString, x.getAs(col1).toString)).rdd,
-    //  df2_2.map(x => (x.getAs(id2).toString, x.getAs(col2).toString)).rdd)
-    //val result : DataFrame = df1_1.SimJoin(df2_2, df1_1(col1), df2_2(col2), distanceMeasure, threshold, "<").dropDuplicates().cache()
-    //val result = new MinHashSimJoin(df1_1, df2_2, col1, col2, threshold).sparkHash(10).dropDuplicates()
     if(type_join == "self"){
       result.join(df1, result.col(id1)===df1.col(id1) and result.col(id2)===df1.col(id2))
     }else
-    result.join(df1, id1).join(df2,id2) //fazer o join com as duas condicoes ao mesmo tempo
+      result.join(df1, id1).join(df2,id2) //fazer o join com as duas condicoes ao mesmo tempo
   }
 
-  
+
 }
 

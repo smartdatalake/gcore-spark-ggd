@@ -1,9 +1,13 @@
 package ggd
 
+import java.sql.Connection
+
+import akka.actor.ActorSystem
 import algebra.expressions.Label
 import common.RandomIdGenerator.randomId
 import common.RandomNameGenerator.randomString
-import ggd.utils.{DataFrameUtils, GGDtoGCoreParser, selectMatch}
+import ggd.utils.{DataFrameUtils, GGDtoGCoreParser, RAWUtils, selectMatch}
+import org.apache.hadoop.hbase.types.RawBytes
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{DataFrame, Row}
 import schema.EntitySchema.LabelRestrictionMap
@@ -119,12 +123,8 @@ case class GraphGenerationV3(gcoreRunner: GcoreRunner) {
         var consQuery: String = ""
         violatedResult = DataFrameUtils.removeDuplicateColumns(violatedDf.join(queryResult, commonVarIds, "Inner"))//.cache()
       }
-      //val violatedResult: DataFrame = violatedDf.join(queryResult, commonVarIds, "Inner").dropDuplicates(commonVarIds).cache()
-        //violatedDf.join(queryResult, commonVar.map(x => x+ "$id"), "Inner").cache()
-      //val violatedResult: DataFrame = violatedDf.join(queryResult, GGDtoGCoreParser.commonColumns(commonVar, violatedDf.columns), "Inner")
       violatedResult.show(10)
       println(violatedResult.count())
-      //gcoreRunner.sparkSession.udf.register("consScore", combineUdf _)
       if (ggd.targetCons.nonEmpty) {
         val violatedResultScore = violatedResult.withColumn("ConstraintScore", constraintUdf(struct(violatedResult.columns.map(col): _*)))
         //val groupedData = violatedResultScore.groupBy(commonVar.head, commonVar.tail: _*).max("ConstraintScore")
@@ -135,12 +135,6 @@ case class GraphGenerationV3(gcoreRunner: GcoreRunner) {
         gcoreRunner.catalog.registerGraph(resultGraph)
         return resultGraph
       } else {
-        //val w1 = Window.partitionBy(commonVar.head + "$id").orderBy(commonVar.last + "$id")
-        //val rowResult = violatedResult.withColumn("row", row_number.over(w1)) //.where($"row" === 1)
-        //val resultGroup = rowResult.groupBy(commonVarIds.head, commonVarIds.tail: _*).min("row")
-        //rowResult.show(10)
-        //resultGroup.show(10)
-        //val resultData = violatedDf.join(resultGroup, commonVarIds, "Inner")
         val resultData = violatedDf
         val resultGraph: SparkGraph = generateGraph(ggd, resultData, commonVar)
         println(resultGraph.graphName)
@@ -155,6 +149,92 @@ case class GraphGenerationV3(gcoreRunner: GcoreRunner) {
       gcoreRunner.catalog.registerGraph(resultGraph)
       return resultGraph
     }
+  }
+
+  //left outer joins not supported, always assume that needs to be generated --> prototype: does not consider constraints of the target or information might already be in in the graph
+  def jdbcGeneration(ggd: GraphGenDep, violatedDf: DataFrame, connection: Connection, path: String, rawURI: String, rawToken: String, rawSave: String): SparkGraph = {
+    implicit val system = ActorSystem()
+    val rawUtils = new RAWUtils()
+    val variablesX = (ggd.sourceGP.map(x => x.vertices.map(_.variable)).flatten ++ ggd.sourceGP.map(x => x.edges.map(_.variable)).flatten).distinct
+    val variablesTarget = (ggd.targetGP.map(x => x.vertices.map(_.variable)).flatten ++ ggd.targetGP.map(x => x.edges.map(_.variable)).flatten).distinct
+    val variablesY = variablesX.diff(variablesTarget)
+    val commonVar = variablesX.intersect(variablesTarget)
+    //assume that there are no Y variables in the target GP if its violated
+    //violated GGDs --> violatedDf
+    //check what is not in the pattern --> variablesY
+    //generate the edges
+    val resultData = violatedDf
+    val resultGraph: SparkGraph = generateGraph(ggd, resultData, commonVar)
+    println(resultGraph.graphName)
+    //save to graph
+    gcoreRunner.catalog.registerGraph(resultGraph)
+    //save to proteus --> use the generated information log to check which files should be saved to proteus
+    val tablesGenerated = generationInformation.map(_.name)
+    //val generatedVertexTables = resultGraph.vertexData.map(_.name.value).intersect(tablesGenerated)
+    //val generatedEdgeTables = resultGraph.edgeData.map(_.name.value).intersect(tablesGenerated)
+    if(!path.isEmpty){
+      //save as json to hdfs or to path selected
+      val tablesData = resultGraph.vertexData.filter(p => tablesGenerated.contains(p.name.value))
+      val edgesData = resultGraph.edgeData.filter(p => tablesGenerated.contains(p.name.value))
+      val name = ggd.targetGP.head.name//target graph name --> resultGraph is intermediate data
+      if(!tablesData.isEmpty){
+        tablesData.foreach(x => {
+          //uncomment here for final version
+          saveFileRAW(path, x.name.value, x.data.asInstanceOf[DataFrame], x.graphName, rawSave)
+          //insert here create table/view for Proteus/RAW
+          //query to create view
+          val rawQuery = getQuerySaveType(rawSave, path, x.name.value)
+          rawUtils.createViews(rawURI, x.name.value, rawQuery, rawToken)
+        })
+      }
+      if(!edgesData.isEmpty){
+        edgesData.foreach(x => {
+          //uncomment here for final version
+          //x.data.asInstanceOf[DataFrame].repartition(1).write.json(path+"/" + name + x.name.value + ".json")
+          saveFileRAW(path, x.name.value, x.data.asInstanceOf[DataFrame], x.graphName, rawSave)
+          //insert here create table/view for Proteus/RAW
+          //query to create view
+          val rawQuery = getQuerySaveType(rawSave, path, x.name.value)
+          //val rawQuery = "read_json(\"file:/" + path+"/" + x.name.value + ".json" + "\")"
+          rawUtils.createViews(rawURI, x.name.value, rawQuery, rawToken)
+        })
+      }
+    }
+    return resultGraph
+    //return new graph
+  }
+
+  def getQuerySaveType(saveType: String, path: String, fileName: String): String = {
+    saveType match {
+      /*case "s3" => "read_json(\"s3://" + path+"/" + fileName + ".json" + "\")"
+      case "hdfs" => "read_json(\"hdfs://" + path+"/" + fileName + ".json" + "\")"
+      case "file" =>  "read_json(\"file:/" + path+"/" + fileName + ".json" + "\")"*/
+      case "s3" => "read_many_json(\"s3://" + path+"/" + fileName + "/p*" + "\")"
+      case "hdfs" => "read_many_json(\"hdfs://" + path+"/" + fileName + "/p*" + "\")"
+      case "file" => "read_many_json(\"file:/" + path+"/" + fileName + "/p*" + "\")"
+    }
+  }
+  //read_many_json(path + filename + "/*.json)
+
+  def saveFileRAW(path: String, labelName: String, data: DataFrame, graphName: String, saveType: String): Unit = {
+    //it will always save to an hdfs so RAW can access it, be careful with the path value
+    val pathSave = saveType match {
+      case "s3" => "s3://" + path + "/" + labelName
+      case "hdfs" => "hdfs://" + path + "/" + labelName
+      case "file" => path+"/" + labelName
+    }
+    val count = data.count()
+    data.toJSON
+      //.coalesce(1) // make sure it is only one partition and in consequence one output file
+      .rdd
+      .zipWithIndex()
+      .map { case(json, idx) =>
+        if(idx == 0) "[" + json + ","
+        else if(idx == count-1) json + "]"
+        else json + ","
+      }
+      .saveAsTextFile(path)
+    //save as a correct json file
   }
 
   def generateGraph(ggd: GraphGenDep, dfResult: DataFrame, commonVar: List[String]) : SparkGraph = {

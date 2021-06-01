@@ -30,23 +30,26 @@ class loadJDBC(gcoreRunner: GcoreRunner) {
       if (rs.getString(c._1).endsWith("\n")) {
         val value = rs.getString(c._1).patch(rs.getString(c._1).lastIndexOf('\n'), "", 1)
         c._2.toLowerCase match {
-          case "int" => value.asInstanceOf[Int]
+          case "integer" => value.toInt//value.asInstanceOf[Int]
           case "varchar" => value.asInstanceOf[String]
-          case "float" => value.asInstanceOf[Float]
-          case "double" => value.asInstanceOf[Double]
-          case "bigint" => value.asInstanceOf[Long]
+          case "float" => value.toFloat//.asInstanceOf[Float]
+          case "double" => value.toDouble//.asInstanceOf[Double]
+          case "bigint" => value.toLong//value.asInstanceOf[Long]
           case _ => value.asInstanceOf[String]
         }
       } else {
         val value = rs.getString(c._1)
+        //if(value == "nan") null
+        //else{
         c._2.toLowerCase match {
-          case "int" => value.asInstanceOf[Int]
+          case "integer" => value.toInt//value.asInstanceOf[Int]
           case "varchar" => value.asInstanceOf[String]
-          case "float" => value.asInstanceOf[Float]
-          case "double" => value.asInstanceOf[Double]
-          case "bigint" => value.asInstanceOf[Long]
+          case "float" => value.toFloat//value.asInstanceOf[Float]
+          case "double" => value.toDouble//value.asInstanceOf[Double]
+          case "bigint" => value.toLong//value.asInstanceOf[Long]
           case _ => value.asInstanceOf[String]
         }
+        //}
       }
     })
     Row(resultSetRecord: _*)
@@ -108,9 +111,6 @@ class loadJDBC(gcoreRunner: GcoreRunner) {
     println("Graph name: " + graph.graphName)
     println(graph.schemaString)
     cat.registerGraph(graph)
-    //graphName --> configPath
-    //val graphName = configPath.split(File.separator).apply(configPath.split(File.separator).size-1)
-    //println("Graph name:" + graphName)
     gcoreRunner.catalog.registerGraph(graph)
   }
 
@@ -127,36 +127,26 @@ class loadJDBC(gcoreRunner: GcoreRunner) {
     println("Graph name: " + graph.graphName)
     println(graph.schemaString)
     cat.registerGraph(graph)
-    //graphName --> configPath
-    //val graphName = configPath.split(File.separator).apply(configPath.split(File.separator).size-1)
-    //println("Graph name:" + graphName)
     gcoreRunner.catalog.registerGraph(graph)
   }
 
   def loadGraphSparkJDBC(config: GraphJsonConfig, source: GraphSource): SparkGraph = {
     val edgeLabels = config.edgeLabels
     val vertexLabels = config.vertexLabels
-    //val pathLabels = config.pathLabels - for now no paths just vertex and edges
     var vertices = Seq[Any]()
     for (v <- vertexLabels) {
+      println("Vertex Table: " ++ v)
       val stmt: Statement = con.createStatement()
-      //val rs:ResultSet =stmt.executeQuery("select * from " + config.graphName + "-" + v);
-      val rs: ResultSet = stmt.executeQuery("select * from " + v + " limit 1"); //limit 5;
+      val rs: ResultSet = stmt.executeQuery("select * from " + v + " limit 1");
       val rsmd = rs.getMetaData
       val columnCount = rsmd.getColumnCount
       // The column count starts from 1
       var header = new ArrayBuffer[(String, String)]()
-      //var types = new ArrayBuffer[String]()
       for (i <- 1 to columnCount) {
+        println("Column Name: " ++ rsmd.getColumnName(i) ++ " Type: " ++ rsmd.getColumnTypeName(i))
         header += ((rsmd.getColumnName(i), rsmd.getColumnTypeName(i)))
-        //header += rsmd.getColumnName(i)
-        //types += rsmd.getColumnTypeName(i)
-        // Do stuff with name
       }
       val schema = StructType(header.map(fieldName => StructField(fieldName._1, getSparkTypes(fieldName._2), true))) //schema ok
-      //transform rows to dataframe -> parallize result set
-      //val df = readTableSparkJDBC(v)
-      //df.show(10)
       val df = parallelizeResultSet(rs, gcoreRunner.sparkSession, schema, header)
       val table = (Table(Label(v), df.cache()))
       vertices = vertices :+ table
@@ -170,18 +160,10 @@ class loadJDBC(gcoreRunner: GcoreRunner) {
       val columnCount = rsmd.getColumnCount
       // The column count starts from 1
       var header = new ArrayBuffer[(String, String)]()
-      //var types = new ArrayBuffer[String]()
       for (i <- 1 to columnCount) {
         header += ((rsmd.getColumnName(i), rsmd.getColumnTypeName(i)))
-        //header += rsmd.getColumnName(i)
-        //types += rsmd.getColumnTypeName(i)
-        // Do stuff with name
       }
       val schema = StructType(header.map(fieldName => StructField(fieldName._1, getSparkTypes(fieldName._2), true))) //schema ok
-      //transform rows to dataframe
-      //val df = readTableSparkJDBC(v)
-      //val dataRDD = gcoreRunner.sparkSession.sparkContext.parallelize()
-      //val df = gcoreRunner.sparkSession.createDataFrame(dataRDD, schema)
       val df = parallelizeResultSet(rs, gcoreRunner.sparkSession, schema, header)
       df.show(10)
       val table = (Table(Label(v), df.cache()))
@@ -220,18 +202,13 @@ class loadJDBC(gcoreRunner: GcoreRunner) {
     var vertices = Seq[Any]()
     for (v <- vertexLabels) {
       val stmt: Statement = con.createStatement()
-      //val rs:ResultSet =stmt.executeQuery("select * from " + config.graphName + "-" + v);
-      val rs: ResultSet = stmt.executeQuery("select * from " + v); //limit 5;
+      val rs: ResultSet = stmt.executeQuery("select * from " + v + " limit 5"); //limit 5;
       val rsmd = rs.getMetaData
       val columnCount = rsmd.getColumnCount
       // The column count starts from 1
       var header = new ArrayBuffer[(String, String)]()
-      //var types = new ArrayBuffer[String]()
       for (i <- 1 to columnCount) {
         header += ((rsmd.getColumnName(i), rsmd.getColumnTypeName(i)))
-        //header += rsmd.getColumnName(i)
-        //types += rsmd.getColumnTypeName(i)
-        // Do stuff with name
       }
       val schema = StructType(header.map(fieldName => StructField(fieldName._1, getSparkTypes(fieldName._2), true))) //schema ok
       //transform rows to dataframe -> parallize result set
@@ -244,24 +221,17 @@ class loadJDBC(gcoreRunner: GcoreRunner) {
     var edges = Seq[Any]()
     for (v <- edgeLabels) {
       val stmt: Statement = con.createStatement()
-      val rs: ResultSet = stmt.executeQuery("select * from " + v); //+ " limit 5");
+      val rs: ResultSet = stmt.executeQuery("select * from " + v + " limit 5");
       val rsmd = rs.getMetaData
       val columnCount = rsmd.getColumnCount
       // The column count starts from 1
       var header = new ArrayBuffer[(String, String)]()
-      //var types = new ArrayBuffer[String]()
       for (i <- 1 to columnCount) {
         header += ((rsmd.getColumnName(i), rsmd.getColumnTypeName(i)))
-        //header += rsmd.getColumnName(i)
-        //types += rsmd.getColumnTypeName(i)
-        // Do stuff with name
       }
       val schema = StructType(header.map(fieldName => StructField(fieldName._1, getSparkTypes(fieldName._2), true))) //schema ok
       //transform rows to dataframe
       val df = parallelizeResultSet(rs, gcoreRunner.sparkSession, schema, header)
-      //val dataRDD = gcoreRunner.sparkSession.sparkContext.parallelize()
-      //val df = gcoreRunner.sparkSession.createDataFrame(dataRDD, schema)
-      df.show(10)
       val table = (Table(Label(v), df.cache()))
       edges = edges :+ table
     }

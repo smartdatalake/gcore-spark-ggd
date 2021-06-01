@@ -24,7 +24,7 @@ object JDBCUtils{
       if(!sep.equals("")){
         colName = rsmd.getColumnName(i).replaceAll(sep, "\\$")
       }
-      //structFields += StructField(rsmd.getColumnName(i), getType(rsmd.getColumnTypeName(i)))
+      //println("Column Type::" ++ rsmd.getColumnTypeName(i) + " number:" ++ rsmd.getColumnType(i).toString)
       structFields += StructField(colName, getType(rsmd.getColumnTypeName(i)))
     }
     StructType(structFields)
@@ -32,6 +32,7 @@ object JDBCUtils{
 
   def getType(str: String): DataType = {
     str match {
+      case "integer" => IntegerType
       case "int" => IntegerType
       case "varchar" => StringType
       case "float" => FloatType
@@ -40,6 +41,7 @@ object JDBCUtils{
       case _ => StringType
     }
   }
+
 
   def parseResultSet(rs: ResultSet): Row = {
     val rsmd = rs.getMetaData
@@ -54,22 +56,22 @@ object JDBCUtils{
       if(rs.getString(c._1).endsWith("\n")){
         val value = rs.getString(c._1).patch(rs.getString(c._1).lastIndexOf('\n'), "", 1)
         c._2.toLowerCase match {
-          case "int" => value.asInstanceOf[Int]
+          case "integer" => value.toInt//value.asInstanceOf[Int]
           case "varchar" => value.asInstanceOf[String]
-          case "float" => value.asInstanceOf[Float]
-          case "double" => value.asInstanceOf[Double]
-          case "bigint" => value.asInstanceOf[Long]
+          case "float" => value.toFloat//.asInstanceOf[Float]
+          case "double" => value.toDouble//.asInstanceOf[Double]
+          case "bigint" => value.toLong//value.asInstanceOf[Long]
           case _ => value.asInstanceOf[String]
         }
       }else{
         val value = rs.getString(c._1)
         //valueConversionScala(c._2, str)
         c._2.toLowerCase match {
-          case "int" => value.asInstanceOf[Int]
+          case "integer" => value.toInt//value.asInstanceOf[Int]
           case "varchar" => value.asInstanceOf[String]
-          case "float" => value.asInstanceOf[Float]
-          case "double" => value.asInstanceOf[Double]
-          case "bigint" => value.asInstanceOf[Long]
+          case "float" => value.toFloat//.asInstanceOf[Float]
+          case "double" => value.toDouble//.asInstanceOf[Double]
+          case "bigint" => value.toLong//value.asInstanceOf[Long]
           case _ => value.asInstanceOf[String]
         }
       }

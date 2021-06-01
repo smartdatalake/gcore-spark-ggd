@@ -48,7 +48,7 @@ object ERRunner{
         case "\\q" =>
           active = false
         case "\\c" =>
-          saveGraph(gcoreRunner, option)
+          saveGraph(gcoreRunner, option, true)
         case "\\h" =>
           options
         case "\\l" =>
@@ -69,9 +69,9 @@ object ERRunner{
 
             var query = option.replace(";", "").trim
             try {
-            println(query)
-            gcoreRunner.compiler.compile(
-              query)
+              println(query)
+              gcoreRunner.compiler.compile(
+                query)
             }
             catch {
               case parseException: parser.exceptions.QueryParseException => println(" Query type unsupported for the moment")
@@ -105,7 +105,7 @@ object ERRunner{
     return graphp
   }
 
-  def saveGraph( gcoreRunner: GcoreRunner , graphp: String): String =
+  def saveGraph( gcoreRunner: GcoreRunner , graphp: String, overwrite: Boolean): String =
   {
     var r_graph = graphp.replace("\\c","").trim
     var graph = ""
@@ -122,7 +122,7 @@ object ERRunner{
     } else{
       try{
         val s = new SaveGraph()
-        s.saveJsonGraph(gcoreRunner.catalog.graph(graph), path)
+        s.saveJsonGraph(gcoreRunner.catalog.graph(graph), path, overwrite)
       }catch {
         case e: Exception => println("Not possible to save " + graph + " on specified path")
       }

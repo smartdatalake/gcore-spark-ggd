@@ -70,24 +70,8 @@ case class SqlRunner(compileContext: CompileContext)  extends RunTargetCodeStage
         val constructBindingTable : DataFrame = sparkSqlPlanner.generateConstructBindingTable(matchData, groupConstructs)
         val graph: PathPropertyGraph = sparkSqlPlanner.constructGraph(constructBindingTable, groupConstructs)
 
-        /*if(GcoreGUI.resultArea != null)
-          GcoreGUI.resultArea.setText(graph.yarspg)
-        if (GcoreGUI.resultTabularArea != null)
-        {
-          val outCapture = new ByteArrayOutputStream
-          Console.withOut(outCapture) {
-            constructBindingTable.show(false)
-          }
-          val result = new String(outCapture.toByteArray)
-          GcoreGUI.resultTabularArea.setText(result)
-
-        }
-        if (GcoreGUI.resultInfo != null)
-          GcoreGUI.resultInfo.setText(graph.toString)*/
-
         println(graph.yarspg)
-        //val saveGraph = SaveGraph()
-        //saveGraph.saveJsonGraph(graph,compileContext.catalog.databaseDirectory)
+
       graph
 
       case (storeGraph : Create) =>
@@ -117,32 +101,22 @@ case class SqlRunner(compileContext: CompileContext)  extends RunTargetCodeStage
         graph
 
       case (selectGraph: TableBuild) =>
-        //println("Table Build!!!")
+
         val matchClause: AlgebraTreeNode = selectGraph.matchClause
         val selectClause: AlgebraTreeNode = selectGraph.selectClause
         val matchWhere: AlgebraTreeNode = selectGraph.matchWhere
 
         val matchData: DataFrame = sparkSqlPlanner.solveBindingTable(matchClause,matchWhere)
-        //println("Binding Table Match Data Table Build:::")
-        //matchData.foreach( Row => println(Row))
-        //build binding table -- not needed, for now
-        //apply select in matchData table
-        //println("Matched data::::::")
-        //matchData.show(10)
-        //print("Construct Next")
+
         val result: DataFrame = sparkSqlPlanner.selectMatchData(matchData, selectClause)
         println(result.show())
-        //select in select clause - create entity
-        //build graph with just one table result - easier to deal (for now)
+
         val graph: PathPropertyGraph = sparkSqlPlanner.constructSelectGraph(result)
         graph
       case (unionGraph: UnionBuild) =>
         val graph: PathPropertyGraph = runStage(unionGraph.graphBuildQuery) //ok!
         val fullGraph : PathPropertyGraph = sparkSqlPlanner.unionGraph(graph, unionGraph.graphUnion.children)
-        //use graph to union with the other graph
-        //println(fullGraph.toString)
-        //println(fullGraph.schemaString)
-        //println(fullGraph.vertexData.head.data.asInstanceOf[DataFrame].show(2))
+
         fullGraph
       case _ =>
         throw UnsupportedOperation(s"Cannot run query on input type ${input.name}")

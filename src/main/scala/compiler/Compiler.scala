@@ -35,5 +35,5 @@ trait Compiler {
 
   def compilePropertyGraphWithLimit(query: String, limit: Int = -1): Any
 
-  def compilerProteus(query: String, con: Connection) : Any
+  def compilerJDBC(query: String, con: Connection) : Any
 }

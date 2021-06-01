@@ -191,7 +191,7 @@ case class GcoreCompiler(context: CompileContext) extends Compiler {
     }
   }
 
-  override def compilerProteus(query: String, con: Connection): Any = { //java sql jdbc connection
+  override def compilerJDBC(query: String, con: Connection): Any = { //java sql jdbc connection
     var parsed: AlgebraTreeNode  = parser(query)
     val targetJDBC: RunTargetCodeStage = SqlJDBCRunner(context, con)
     parsed match {

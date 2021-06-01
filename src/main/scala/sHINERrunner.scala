@@ -15,7 +15,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 
 object sHINERrunner {
-//sHINNER Command-line for testing and running automatically
+  //sHINNER Command-line for testing and running automatically
 
 
   /***
@@ -28,9 +28,14 @@ object sHINERrunner {
    * @param verification - boolean value, true if there is a second input for matched ids and false if no verification is needed
    * @param savegraph - path for saving the resulting graph from graph generation
    * @param verificationpath - if verification is true then set a verification path to save the results, results will be saved according to the order it was declared in the ground truth file
+   * @param raw_oath - authentication token for RAW Labs Connection (used only in case the query mode is jdbc, otherwise can be empty)
+   * @param raw_url - url to connect to RAW
+   * @param raw_save - save local for raw : (s3, hdfs, file)
+   * @param raw_path - path for saving files from RAW using jdbc
    */
   case class Configuration(query: String, database: String, ggds: String, jdbcurl: String, username: String, pwd: String, verification: Boolean, savegraph: String,
-                           verificationpath : String)
+                           verificationpath : String, raw_oath: String, raw_url: String, raw_save: String, raw_path: String)
+
 
   /***
    * @param groundtruth - path to groundtruth csv in which the format is id1,id2 meaning id1 matches id2
@@ -88,28 +93,28 @@ object sHINERrunner {
       println("GGDs in path" + configuration.ggds + " were set!")
       println("Start running Validation and Graph Generation")
       startTime = System.nanoTime()
-      resultingGraph = ercommand.graphGenerationJDBC()
+      resultingGraph = ercommand.graphGenerationJDBC(configuration.raw_path, configuration.raw_url, configuration.raw_oath, configuration.raw_save)
       endTime = System.nanoTime()
       println("Time in nanoseconds:" + (endTime - startTime).toString)
     }
 
     //save resulting graph from the graph generation process
     if(configuration.savegraph != ""){
-        if (!gcoreRunner.catalog.hasGraph(resultingGraph.graphName)) {
-          println("Error: Graph not available")
-        } else {
-          try {
-            val s = new SaveGraph
-            s.saveJsonGraph(resultingGraph, configuration.savegraph)
-            //s.saveJsonGraph(gcoreRunner.catalog.graph(resultingGraph.graphName), configuration.savegraph)
-            println("The graph "+ resultingGraph.graphName + " was saved on the specified path")
-          } catch {
-            case e: Exception => {
-              println("Not possible to save " + resultingGraph.graphName + " on specified path")
-              e.printStackTrace()
-            }
+      if (!gcoreRunner.catalog.hasGraph(resultingGraph.graphName)) {
+        println("Error: Graph not available")
+      } else {
+        try {
+          val s = new SaveGraph
+          s.saveJsonGraph(resultingGraph, configuration.savegraph)
+          //s.saveJsonGraph(gcoreRunner.catalog.graph(resultingGraph.graphName), configuration.savegraph)
+          println("The graph "+ resultingGraph.graphName + " was saved on the specified path")
+        } catch {
+          case e: Exception => {
+            println("Not possible to save " + resultingGraph.graphName + " on specified path")
+            e.printStackTrace()
           }
         }
+      }
     }
 
     //set up an api for verifying the ground truth for entity resolution

@@ -570,7 +570,7 @@ case class EditDistanceSimilarityJoinDima(
   override protected def doExecute(): RDD[InternalRow] = {
     logInfo(s"execute EdSimilarityJoin")
 
-    val left_rdd = left.execute()/*.filter(row =>{
+    val left_rdd = left.execute().filter(row =>{
       try{
         val key = BindReferences.bindReference(left_keys, left.output)
           .eval(row)
@@ -580,7 +580,7 @@ case class EditDistanceSimilarityJoinDima(
       } catch{
         case e: NullPointerException => false
       }
-    })*/.map(row =>
+    }).map(row =>
     {
       val key = BindReferences
         .bindReference(left_keys, left.output)
@@ -590,7 +590,7 @@ case class EditDistanceSimilarityJoinDima(
       (key, row.copy())
     })
 
-    val right_rdd = right.execute()/*.filter(row =>{
+    val right_rdd = right.execute().filter(row =>{
       try{
         val key = BindReferences
           .bindReference(right_keys, right.output)
@@ -601,7 +601,7 @@ case class EditDistanceSimilarityJoinDima(
       } catch{
         case e: NullPointerException => false
       }
-    })*/.map(row =>
+    }).map(row =>
     {
       val key = BindReferences
         .bindReference(right_keys, right.output)

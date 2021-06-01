@@ -75,15 +75,6 @@ case class SqlBindingTableMetadata(sparkSchemaMap: Map[Reference, StructType],
     val stmt:Statement =con.createStatement();
     println("Connected!!!")
     println("Query string::::" + query)
-    //val newQuery = query.replaceAll("global_temp.", "")//.replace('$', '0').replaceAll("`", "").replaceAll("0", "0_0")
-    //println("newQuery:::::" + newQuery)
-    //val newQuery = "SELECT id AS p0_0id, price AS p0_0price, " +
-    //  "name AS p0_0name, description AS p0_0description, idGoogle AS p0_0idGoogle, label AS p0_0label  FROM ProductGoogle LIMIT 20"
-    //val newQuery =  "SELECT * FROM (" +
-    //  "SELECT id AS x0_0id, fromId AS x0_0fromId FROM producedbyGoogle JOIN (" +
-    //  "SELECT id AS p0_0id FROM ProductGoogle) ON x0_0fromId = p0_0id) LIMIT 20"
-    //val newQuery = "SELECT p.id AS p0_0id, p.price AS p0_0price, x.id AS x0_0id, x.fromId AS x0_0fromId FROM ProductGoogle p, producedbyGoogle x WHERE p.id = x.fromId LIMIT 20"
-    //val rs:ResultSet =stmt.executeQuery(newQuery);
     val rs:ResultSet = stmt.executeQuery(query)
     val schema = JDBCUtils.extractSchema(rs, "0_0")
     JDBCUtils.parallelizeResultSet(rs, sparkSession, schema)
