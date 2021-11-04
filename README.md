@@ -86,3 +86,7 @@ mvn test
 For more information on how to use this component, refer to the sHINERManual.pdf document in the repository.
 This document contains more information about the component architecture, input formats, how to use the command-line application and the REST API.
 The project is under development, as the project is updated the manual will describe the changes made to the project.
+
+## Acknowledgments
+
+This project has received funding from the European Union's Horizon 2020 research and innovation programme under grant agreement No 825041.
