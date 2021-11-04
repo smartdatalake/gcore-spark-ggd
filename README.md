@@ -1,4 +1,4 @@
-# Graph Generating Dependencies using G-CORE interpreter on Spark
+# sHINER - Graph Generating Dependencies using G-CORE interpreter on Spark
 
 The Graph Generating Dependencies is a new class of graph dependencies proposed for property graphs inspired by the tuple- and equality-generating dependencies for relational data.
 More information on the Graph Generating Dependencies and its syntax refer to the paper at: 
