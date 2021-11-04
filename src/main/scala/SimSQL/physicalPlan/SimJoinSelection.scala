@@ -18,26 +18,20 @@ object SimJoinSelection extends Strategy with PredicateHelper {
       measure match {
         case "JaccardSimilarity" => {
           logInfo(s"JaccardSimilarityJoin")
-          JaccardSimilarityJoinDima(left_keys, right_keys, Similarity, planLater(left), planLater(right), operator, threshold) :: Nil
-          //JaccardSimilarityJoinExec(left_keys, right_keys, Similarity, planLater(left), planLater(right), operator, threshold) :: Nil
-          //VernicaJoin(left_keys, right_keys, Similarity, planLater(left), planLater(right), operator, threshold) :: Nil
+          //JaccardSimilarityJoinDima(left_keys, right_keys, Similarity, planLater(left), planLater(right), operator, threshold) :: Nil
+          VernicaJoin(left_keys, right_keys, Similarity, planLater(left), planLater(right), operator, threshold) :: Nil
         }
         case "SelfJaccardSimilarity" => {
           logInfo(s"SelfJaccardSimilarityJoin")
           println("Self Jaccard Similarity Join")
           JaccardSimilarityJoinDima(left_keys, right_keys, Similarity, planLater(left), planLater(right), operator, threshold) :: Nil
-          //left.toString()
-          //JaccardSimilarityJoinExec(left_keys, right_keys, Similarity, planLater(left), planLater(left), operator, threshold) :: Nil
-          //VernicaJoin(left_keys, right_keys, Similarity, planLater(left), planLater(left), operator, threshold) :: Nil
         }
         case "EditSimilarity" => {
           logInfo(msg = s"Edit Distance Similarity")
-          //EditSimilarityJoinExec(left_keys, right_keys, Similarity, planLater(left), planLater(right), operator, threshold) :: Nil
           EditDistanceSimilarityJoinDima(left_keys, right_keys, Similarity, planLater(left), planLater(right), operator, threshold) :: Nil
         }
         case _ => {
           logError(s"No similarity join operator for the similarity function" + measure)
-          //logInfo(s"No similarity join operator for the similarity function" + measure)
           Nil //no similarity join operator for this kind of similarity function
         }
       }

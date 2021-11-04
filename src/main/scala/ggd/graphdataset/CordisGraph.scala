@@ -85,7 +85,7 @@ object CordisGraph {
 
     val orgCols = Seq("org.name", "id", "org.vatNumber", "org.shortName" , "OrgID", "org.street", "org.city", "org.postcode", "org.organizationUrl", "org.contactForm",
       "org.contactType","org.contactTitle","org.contactFirstNames","org.contactLastNames","org.contactFunction","org.contactTelephoneNumber","org.contactFaxNumber")
-    val orgNodes = organizations.select(orgCols.head, orgCols.tail:_*).dropDuplicates()
+    val orgNodes = organizations.select(orgCols.head, orgCols.tail:_*).dropDuplicates("id")//.dropDuplicates()
       .withColumn("label", lit("Organization"))
 
     //orgNodes.show(10)
@@ -320,7 +320,7 @@ object CordisGraph {
     println("org nodes" + organizations.count())
     println("proj nodes" + projectsNode.count())
 
-    val orgNodesFinal = orgNodes.drop("OrgID")
+    val orgNodesFinal = orgNodes.drop("OrgID").dropDuplicates("id")
     val papersNodesFinal = papersNodes.drop("PubID")
 
     val cordisGraph = new SparkGraph {
@@ -384,7 +384,8 @@ object CordisGraph {
     println(cordisGraph.schemaString)
 
     val saveGraph = new SaveGraph
-    saveGraph.saveJsonGraph(cordisGraph, outputPath)
+    //saveGraph.saveJsonGraph(cordisGraph, outputPath)
+    saveGraph.saveParquetGraph(cordisGraph, outputPath)
   }
 
 }

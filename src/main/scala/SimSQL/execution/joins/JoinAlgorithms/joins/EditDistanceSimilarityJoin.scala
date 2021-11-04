@@ -30,8 +30,8 @@ import scala.collection.mutable.{ArrayBuffer, ListBuffer, Map}
 import org.apache.spark.broadcast.Broadcast
 
 /**
-  * Created by sunji on 16/9/2.
-  */
+ * Created by sunji on 16/9/2.
+ */
 /**
  * Code and Method for JaccardSimilarity and Edit Similarity from Dima - project from TsinghuaDatabase Group
  * https://github.com/TsinghuaDatabaseGroup/Dima
@@ -41,7 +41,7 @@ case class ValueInfo(
                       record: String,
                       isDeletion: Boolean,
                       value: Array[Boolean]
-                      ) extends Serializable
+                    ) extends Serializable
 
 case class EditDistanceSimilarityJoinDima(
                                            left_keys: Expression,
@@ -54,10 +54,10 @@ case class EditDistanceSimilarityJoinDima(
   override def output: Seq[Attribute] = left.output ++ right.output
 
   //set default values from the partitions
-  final val num_partitions = 2//sqlContext.conf.numSimilarityPartitions
+  final val num_partitions = 100//sqlContext.conf.numSimilarityPartitions
   final val threshold =  thresh.toString.toDouble.toInt//thresh.toString.toInt
   final val topDegree = 0//sqlContext.conf.similarityBalanceTopDegree
-  final val abandonNum = 2//sqlContext.conf.similarityFrequencyAbandonNum
+  final val abandonNum = 10//sqlContext.conf.similarityFrequencyAbandonNum
   final val partitionNumToBeSent = 1//sqlContext.conf.partitionNumToBeSent
   final val weight = Some("0").get.split(",").map(x => x.toInt)
   val distribute = new Array[Long](2048)
@@ -85,7 +85,7 @@ case class EditDistanceSimilarityJoinDima(
   }
 
   private def minHeapify(A: Array[(Int, (Long, Long), Int)],
-                              i: Int): Array[(Int, (Long, Long), Int)] = {
+                         i: Int): Array[(Int, (Long, Long), Int)] = {
     val l = left_child(i)
     val r = right_child(i)
     val AA = A.clone()
@@ -116,8 +116,8 @@ case class EditDistanceSimilarityJoinDima(
   }
 
   private def heapExtractMin(
-                                   A: Array[(Int, (Long, Long), Int)]
-                                 ): ((Int, (Long, Long), Int), Array[(Int, (Long, Long), Int)]) = {
+                              A: Array[(Int, (Long, Long), Int)]
+                            ): ((Int, (Long, Long), Int), Array[(Int, (Long, Long), Int)]) = {
     val heapSize = A.length
     if (heapSize < 1) {
     }
@@ -128,10 +128,10 @@ case class EditDistanceSimilarityJoinDima(
   }
 
   private def heapIncreaseKey(
-                                    A: Array[(Int, (Long, Long), Int)],
-                                    i: Int,
-                                    key: (Int, (Long, Long), Int)
-                                  ): Array[(Int, (Long, Long), Int)] = {
+                               A: Array[(Int, (Long, Long), Int)],
+                               i: Int,
+                               key: (Int, (Long, Long), Int)
+                             ): Array[(Int, (Long, Long), Int)] = {
     if (compare(key._2, A(i - 1)._2) > 0) {
     }
     val AA = A.clone()
@@ -147,15 +147,15 @@ case class EditDistanceSimilarityJoinDima(
   }
 
   private def minHeapInsert(
-    A: Array[(Int, (Long, Long), Int)],
-    key: (Int, (Long, Long), Int)
-    ): Array[(Int, (Long, Long), Int)] = {
+                             A: Array[(Int, (Long, Long), Int)],
+                             key: (Int, (Long, Long), Int)
+                           ): Array[(Int, (Long, Long), Int)] = {
     val AA = Array.concat(A, Array(key).map(x => (x._1, (Long.MaxValue, Long.MaxValue), x._3)))
     heapIncreaseKey(AA, AA.length, key)
   }
 
   private def buildMinHeap(
-    A: Array[(Int, (Long, Long), Int)])
+                            A: Array[(Int, (Long, Long), Int)])
   : Array[(Int, (Long, Long), Int)] = {
     var AA = A.clone()
     for (i <- (1 until Math.floor(AA.length / 2).toInt + 1).reverse) {
@@ -165,15 +165,15 @@ case class EditDistanceSimilarityJoinDima(
   }
 
   private def calculateVsl(
-    U: Int,
-    l: Int,
-    indexNum: scala.collection.Map[(Int, Boolean), Long],
-    record: String,
-    threshold: Int,
-    numPartition: Int,
-    topDegree: Int,
-    P: Map[(Int, Int), Int],
-    L: Map[(Int, Int), Int]): Array[Int] = {
+                            U: Int,
+                            l: Int,
+                            indexNum: scala.collection.Map[(Int, Boolean), Long],
+                            record: String,
+                            threshold: Int,
+                            numPartition: Int,
+                            topDegree: Int,
+                            P: Map[(Int, Int), Int],
+                            L: Map[(Int, Int), Int]): Array[Int] = {
 
     val sLength = record.length
 
@@ -277,9 +277,7 @@ case class EditDistanceSimilarityJoinDima(
     }
 
     val deata_distribute0 = {
-      // 只考虑有变化的reducer的负载
       for (i <- 0 until U + 1) yield {
-        // 分配到1之后情况比较单一,只有inverseindex 和 inversequery匹配这一种情况,只会对一个reducer产生影响
         val dis = distribute.slice(0, numPartition).clone()
         val change = ArrayBuffer[Int]()
         for (j <- addToDistributeWhen1(i)) {
@@ -311,7 +309,6 @@ case class EditDistanceSimilarityJoinDima(
     }.toArray
 
     val deata_distribute1 = {
-      // 分配到2
       for (i <- 0 until U + 1) yield {
         val dis = distribute.slice(0, numPartition).clone()
         val change = ArrayBuffer[Int]()
@@ -388,10 +385,10 @@ case class EditDistanceSimilarityJoinDima(
   }
 
   private def part(
-    content: InternalRow, s: String,
-    threshold: Int,
-    L: Broadcast[Map[(Int, Int), Int]],
-    P: Broadcast[Map[(Int, Int), Int]]): Array[(Int, ValueInfo)] = {
+                    content: InternalRow, s: String,
+                    threshold: Int,
+                    L: Broadcast[Map[(Int, Int), Int]],
+                    P: Broadcast[Map[(Int, Int), Int]]): Array[(Int, ValueInfo)] = {
     var ss = ArrayBuffer[(Int, ValueInfo)]()
     val U: Int = threshold
     val l = s.length
@@ -403,16 +400,10 @@ case class EditDistanceSimilarityJoinDima(
       }
       ss += Tuple2((seg1, i, l, 0).hashCode(),
         ValueInfo(content, s, false, Array[Boolean]()))
-      if (s == "cafe bizou") {
-        logInfo(s"segIndexSig: " + seg1 + ", " + i + ", " + l)
-      }
       for (n <- 0 until length) {
         val subset = s.slice(point, point + n) + s.slice(point + n + 1, point + length)
         val seg = subset
         val key = (seg, i, l, n + 1).hashCode()
-        if (s == "cafe bizou") {
-          logInfo(s"delIndexSig: " + seg + ", " + i + ", " + l + ", " + (n + 1))
-        }
         ss += Tuple2(key, ValueInfo(content, s, true, Array[Boolean]()))
       }
       point = point + length
@@ -440,13 +431,13 @@ case class EditDistanceSimilarityJoinDima(
   }
 
   private def parts(
-                          content: InternalRow,
-                          s: String,
-                          indexNum1: Broadcast[scala.collection.Map[(Int, Boolean), Long]],
-                          L: Broadcast[Map[(Int, Int), Int]],
-                          P: Broadcast[Map[(Int, Int), Int]],
-                          threshold: Int,
-                          max: Int): Array[(Int, ValueInfo)] = {
+                     content: InternalRow,
+                     s: String,
+                     indexNum1: Broadcast[scala.collection.Map[(Int, Boolean), Long]],
+                     L: Broadcast[Map[(Int, Int), Int]],
+                     P: Broadcast[Map[(Int, Int), Int]],
+                     threshold: Int,
+                     max: Int): Array[(Int, ValueInfo)] = {
     val result = ArrayBuffer[(Int, ValueInfo)]()
     val sLength = s.length
     val lu = Math.min(sLength + threshold, max)
@@ -475,18 +466,11 @@ case class EditDistanceSimilarityJoinDima(
               val subset = s.slice(x - 1, x - 1 + length)
               subset
             }
-            if (s == "cafe bizou") {
-              logInfo(s"segProbeSig_1: " + seg + ", " + i + ", " + l)
-            }
             result += Tuple2((seg, i, l, 0).hashCode(), ValueInfo(content, s, false, Array(false)))
           } else if (V(i - 1) == 2) {
             for (n <- 0 until length) {
               val subset = s.slice(x - 1, x - 1 + n) + s.slice(x - 1 + n + 1, x - 1 + length)
               val seg = subset
-              if (s == "cafe bizou") {
-                logInfo(s"segment: ${s.slice(x - 1, x - 1 + length)}")
-                logInfo(s"delProbeSig_2: (" + seg + ", " + i + ", " + l + ", " + (n + 1) + ")")
-              }
               val key = (seg, i, l, n + 1).hashCode()
               result += Tuple2(key, ValueInfo(content, s, true, Array(true)))
             }
@@ -511,8 +495,8 @@ case class EditDistanceSimilarityJoinDima(
   }
 
   private def calculateAllL(min: Int,
-                                 max: Int,
-                                 threshold: Int): Map[(Int, Int), Int] = {
+                            max: Int,
+                            threshold: Int): Map[(Int, Int), Int] = {
     val result = Map[(Int, Int), Int]()
     for (l <- min until max + 1) {
       for (i <- 1 until threshold + 2) {
@@ -523,9 +507,9 @@ case class EditDistanceSimilarityJoinDima(
   }
 
   private def calculateAllP(min: Int,
-                                 max: Int,
-                                 L: Broadcast[scala.collection.mutable.Map[(Int, Int), Int]],
-                                 threshold: Int): Map[(Int, Int), Int] = {
+                            max: Int,
+                            L: Broadcast[scala.collection.mutable.Map[(Int, Int), Int]],
+                            threshold: Int): Map[(Int, Int), Int] = {
     val result = Map[(Int, Int), Int]()
     for (l <- min until max + 1) {
       for (i <- 1 until threshold + 2) {
@@ -545,7 +529,7 @@ case class EditDistanceSimilarityJoinDima(
   }
 
   private def compareSimilarity(
-    query: ValueInfo, index: ValueInfo, threshold: Int): Boolean = {
+                                 query: ValueInfo, index: ValueInfo, threshold: Int): Boolean = {
     val queryHash = query.record.hashCode
     val indexHash = index.record.hashCode
     /* logInfo(s"compare: ${query.record} and ${index.record}," +
@@ -729,7 +713,7 @@ case class EditDistanceSimilarityJoinDima(
           num_partitions, partitionTable, frequencyTable, maxPartitionId.value)), true)
       .persist(StorageLevel.MEMORY_AND_DISK_SER)
 
-    query_partitioned_rdd.count
+    println("count:" + query_partitioned_rdd.count)
 
     query_partitioned_rdd.zipPartitions(index_indexed_rdd) {
       (leftIter, rightIter) => {
@@ -767,8 +751,8 @@ case class EditDistanceSimilarityJoinDima(
               }
             }
 
-            // TODO duplicate result shoule be removed
-            if (compareSimilarity(q._2, data(i), threshold)) {
+            // TODO duplicate result shoule be removed --> check for duplicated result
+            if (compareSimilarity(q._2, data(i), threshold) && !ans.contains(q._2.content, data(i).content)) {
               ans += Tuple2(q._2.content, data(i).content)
             }
           }

@@ -3,11 +3,13 @@ package ggd
 import java.io.File
 import java.nio.file.Paths
 
+import algebra.expressions.Label
 import org.apache.spark.sql.DataFrame
-import schema.PathPropertyGraph
+import schema.{PathPropertyGraph, SchemaMap, Table}
 import spark._
 import ggd._
 import ggd.utils._
+import schema.EntitySchema.LabelRestrictionMap
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -25,7 +27,7 @@ class ERCommand(gcoreRunner: GcoreRunner){
   def readGGDs(path: String): Unit = {
     println("Read GGDs!!")
     ggds.loadGGDs(path)
-  } //- implement method to read form ggd json not from file
+  }
 
   def setGGDs(set: Seq[GraphGenDep]): Unit = {
     ggds.AllGGDs = set
@@ -88,7 +90,7 @@ class ERCommand(gcoreRunner: GcoreRunner){
   }
 
   def graphSchemaList(names : List[String]): List[String] = {
-    names.map(n => gcoreRunner.catalog.graph(n).schemaString) //return list of schema strings
+    names.map(n => gcoreRunner.catalog.graph(n).schemaString)
   }
 
   def graphSchema(name: String) : String = {
@@ -99,11 +101,59 @@ class ERCommand(gcoreRunner: GcoreRunner){
     val save = new SaveGraph()
     val jsonConfig = save.getJsonSchema(gcoreRunner.catalog.graph(name))
     jsonConfig
-    //gcoreRunner.catalog.graph(name).schemaString
   }
 
   def availableGraphs() : List[String] = {
     gcoreRunner.catalog.allGraphsKeys.toList
+  }
+
+  def dropGGDs(info: List[generatedInfoGraph]): Unit = {
+    val graphs = info.map(_.graphName).distinct
+    graphs.foreach(graph => {
+      val sparkGraph = gcoreRunner.catalog.graph(graph)
+      val infotoDrop = info.filter(_.graphName == graph)
+      val tablesToDrop = infotoDrop.map(_.name)
+      val newEdges = sparkGraph.edgeData.asInstanceOf[Seq[Table[DataFrame]]].filter(x => !tablesToDrop.contains(x.name.value))
+      val newVertices = sparkGraph.vertexData.asInstanceOf[Seq[Table[DataFrame]]].filter(x => !tablesToDrop.contains(x.name.value))
+      val newEdgeRestriction = sparkGraph.edgeRestrictions.map.filterKeys(x => !tablesToDrop.contains(x.value))
+      val schema = new SchemaMap[Label, (Label,Label)](newEdgeRestriction)
+      val newGraph = new SparkGraph {
+        override var graphName: String = graph
+
+        override def edgeRestrictions: LabelRestrictionMap = schema
+
+        override def storedPathRestrictions: LabelRestrictionMap = SchemaMap.empty
+
+        override def vertexData: Seq[Table[DataFrame]] = newVertices
+
+        override def edgeData: Seq[Table[DataFrame]] = newEdges
+
+        override def pathData: Seq[Table[DataFrame]] = Seq.empty
+      }
+      gcoreRunner.catalog.unregisterGraph(graph) //remove old graph
+      gcoreRunner.catalog.registerGraph(newGraph) //insert the new graph with deleted edges/vertices
+    })
+    val newGGDs = ggds.AllGGDs.zipWithIndex.filterNot(x => info.map(_.ggd).contains(x._2))
+    ggds.AllGGDs = newGGDs.map(_._1)
+  }
+
+  def createGraph(graphname: String, uniongraphs: List[String]) : Unit = {
+    val sparkgraphs = uniongraphs.map(x => gcoreRunner.catalog.graph(x))
+    val edgeRes = sparkgraphs.map(_.edgeRestrictions).reduce((a,b) => a.union(b))
+    val targetGraph = new SparkGraph {
+      override var graphName: String = graphname
+
+      override def edgeRestrictions: LabelRestrictionMap = edgeRes
+
+      override def storedPathRestrictions: LabelRestrictionMap = SchemaMap.empty
+
+      override def vertexData: Seq[Table[DataFrame]] = sparkgraphs.map(_.vertexData.asInstanceOf[Seq[Table[DataFrame]]]).reduce((a,b) => a.union(b))
+
+      override def edgeData: Seq[Table[DataFrame]] = sparkgraphs.map(_.edgeData.asInstanceOf[Seq[Table[DataFrame]]]).reduce((a,b) => a.union(b))
+
+      override def pathData: Seq[Table[DataFrame]] = Seq.empty
+    }
+    gcoreRunner.catalog.registerGraph(targetGraph)
   }
 
   def Validation() : Seq[GraphGenDep] = {
@@ -113,6 +163,13 @@ class ERCommand(gcoreRunner: GcoreRunner){
       if(violated.data.isEmpty) violatedGGDs += violated.ggd
     }
     violatedGGDs
+  }
+
+  def ValidationReturn() : DataFrame = {
+    val violatedGGDs = new ArrayBuffer[GraphGenDep]()
+    val ggd = ggds.AllGGDs.head
+    val violated = ggdValV2.ValidationV3(ggd)
+    return violated.data
   }
 
   def ValidationJDBC(): Seq[GraphGenDep] = {
@@ -131,7 +188,6 @@ class ERCommand(gcoreRunner: GcoreRunner){
     }
     val cat: SparkCatalog = new SparkCatalog(gcoreRunner.sparkSession)
     cat.registerGraph(graphSource,Paths.get(configPath+File.separator+"config.json"))
-    //graphName --> configPath
     val graphName = configPath.split(File.separator).apply(configPath.split(File.separator).size-1)
     println("Graph name:" + graphName)
     gcoreRunner.catalog.registerGraph(cat.graph(graphName))
@@ -151,7 +207,6 @@ class ERCommand(gcoreRunner: GcoreRunner){
       changesInGraph = false
       for(ggd <- ggds.AllGGDs) {
         val violated: Violated = ggdValV2.ValidationV3(ggd)
-        //println("Number of violated matches:" + violated.data.count())
         if (!violated.data.isEmpty) {
           changesInGraph = true
           println("Violated GGD - graph generation to validate it")
@@ -164,7 +219,6 @@ class ERCommand(gcoreRunner: GcoreRunner){
     gcoreRunner.catalog.registerGraph(generatedGraphGGD)
     return generatedGraphGGD
   }
-
 
   //inputs path to save data on jdbc
   def graphGenerationJDBC(path: String, raw_uri: String, raw_token: String, raw_save: String): PathPropertyGraph = {
@@ -179,8 +233,6 @@ class ERCommand(gcoreRunner: GcoreRunner){
         if (!violated.data.isEmpty) {
           changesInGraph = true
           println("Violated GGD - graph generation to validate it")
-          //When using Proteus the graph generation assumes that everything that is not on the result of the validation needs to be generated
-          //(discarding the need to use optional queries from jdbc and creating locally the resulting graph, only the portion that needs to be generation)
           generatedGraphGGD = ggdValV2.graphGenerationProteus(violated, loadP.con, path, raw_uri, raw_token, raw_save)
           println(generatedGraphGGD.schemaString)
         }//else changesInGraph = false

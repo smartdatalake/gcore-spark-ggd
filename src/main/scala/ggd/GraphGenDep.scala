@@ -37,7 +37,6 @@ class GraphGenDep {
     val targetFile = Source.fromFile(ggdFile+"target.json").mkString
     val constraintFile = Source.fromFile(ggdFile+"constraint.json").mkString
     val constraintFileTarget = Source.fromFile(ggdFile+"constraintTarget.json").mkString
-    //print(sourceFile)
     name = ggdFile.getFileName.toString
     sourceGP = loadGraphJSON(sourceFile)
     targetGP = loadGraphJSON(targetFile)
@@ -53,7 +52,7 @@ class GraphGenDep {
 
   def loadGraphGenDepJSON(str: String): Unit = {
     val json = parse(str)
-    val ggd: GGD = json.camelizeKeys.extract[GGD] //case class for GGDs -> TODO:change to just one class
+    val ggd: GGD = json.camelizeKeys.extract[GGD]
     sourceGP = ggd.sourceGP
     sourceCons = ggd.sourceCons
     targetGP = ggd.targetGP
@@ -110,6 +109,12 @@ class GraphGenDep {
   }
 
 }
+
+case class GGDString(sourceGP: List[GraphPattern],
+                     sourceCons: List[ConstraintString],
+                     targetGP: List[GraphPattern],
+                     targetCons: List[ConstraintString])
+
 
 //GGD case class for ggd json reading
 case class GGD(sourceGP: List[GraphPattern],
@@ -179,7 +184,7 @@ case class GraphPattern(
       e.fromLabel = FromLabel
       e.toLabel = ToLabel
       patternEdges = "(" + e.fromVariable + ":" + FromLabel + ")-[" + e.variable + ":" + e.label + "]->(" + e.toVariable + ":" + e.toLabel + ")";
-    //}else if (edges.size == 2){
+      //}else if (edges.size == 2){
       if(!allVertices.contains(e.fromVariable)) allVertices += e.fromVariable
       if(!allVertices.contains(e.toVariable)) allVertices += e.toVariable
     }else{
@@ -189,7 +194,7 @@ case class GraphPattern(
         e.fromLabel = FromLabel
         e.toLabel = ToLabel
         if(patternEdges == "")
-        patternEdges = "(" + e.fromVariable + ":" + FromLabel + ")-[" + e.variable + ":" + e.label + "]->(" + e.toVariable + ":" + e.toLabel + ")"
+          patternEdges = "(" + e.fromVariable + ":" + FromLabel + ")-[" + e.variable + ":" + e.label + "]->(" + e.toVariable + ":" + e.toLabel + ")"
         else{
           patternEdges += ", (" + e.fromVariable + ":" + FromLabel + ")-[" + e.variable + ":" + e.label + "]->(" + e.toVariable + ":" + e.toLabel + ")"
         }
@@ -210,24 +215,24 @@ case class GraphPattern(
 
   def parsePatternConstruct(common: List[String]): ArrayBuffer[String] = {
     var patternEdges : ArrayBuffer[String] = new ArrayBuffer[String]()
-   for(e <- edges) {
-     var from, edge, to : String = ""
-     val e = edges.head
-     val FromLabel: String = variableLabel(e.fromVariable)
-     val ToLabel: String = variableLabel(e.toVariable)
-     e.fromLabel = FromLabel
-     e.toLabel = ToLabel
-     if(common.contains(e.fromVariable)){
-       from = e.fromVariable
-     }else from = e.fromVariable + ":" + FromLabel
-     if(common.contains(e.variable)){
-       edge = e.variable
-     }else edge = e.variable + ":" + e.label
-     if(common.contains(e.toVariable)){
-       to = e.toVariable
-     }else e.toVariable + ":" + ToLabel
-     patternEdges += "(" + from + ")-[" + edge +"]->(" + to + ")";
-   }
+    for(e <- edges) {
+      var from, edge, to : String = ""
+      val e = edges.head
+      val FromLabel: String = variableLabel(e.fromVariable)
+      val ToLabel: String = variableLabel(e.toVariable)
+      e.fromLabel = FromLabel
+      e.toLabel = ToLabel
+      if(common.contains(e.fromVariable)){
+        from = e.fromVariable
+      }else from = e.fromVariable + ":" + FromLabel
+      if(common.contains(e.variable)){
+        edge = e.variable
+      }else edge = e.variable + ":" + e.label
+      if(common.contains(e.toVariable)){
+        to = e.toVariable
+      }else e.toVariable + ":" + ToLabel
+      patternEdges += "(" + from + ")-[" + edge +"]->(" + to + ")";
+    }
     return patternEdges
   }
 
@@ -270,12 +275,21 @@ case class Constraint (
                       )
 
 
+case class ConstraintString(distance: String,var1 : String,var2 : String,attr1: String, attr2: String,threshold: String,operator:String) {
+
+  def toConstraintClass(): Constraint = {
+    Constraint(this.distance, this.var1, this.var2, this.attr1, this.attr2, this.threshold.toDouble, this.operator)
+  }
+
+}
+
+
 case class gcoreQuery(
-                     variables : List[String],
-                     pattern : String
+                       variables : List[String],
+                       pattern : String
                      )
 
 case class gcoreConstructQuery(
-                              pattern: String,
-                              graphName: String
+                                pattern: String,
+                                graphName: String
                               )

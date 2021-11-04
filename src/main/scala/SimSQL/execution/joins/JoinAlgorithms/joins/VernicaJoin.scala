@@ -26,12 +26,12 @@ import scala.collection.mutable.ArrayBuffer
  */
 
 case class VernicaJoin(leftKeys: Expression,
-                                     rightKeys: Expression,
-                                     joinType: SimilarityJoinType,
-                                     left: SparkPlan,
-                                     right: SparkPlan,
-                                     operator: Literal,
-                                     thresh: Literal)
+                       rightKeys: Expression,
+                       joinType: SimilarityJoinType,
+                       left: SparkPlan,
+                       right: SparkPlan,
+                       operator: Literal,
+                       thresh: Literal)
   extends BinaryExecNode {
   final val threshold = thresh.toString.toDouble
   var tokenOrHM_BD: Broadcast[mutable.HashMap[String, (Int, Int)]] = null
@@ -295,13 +295,13 @@ case class VernicaJoin(leftKeys: Expression,
     //RDD[idx, rec-id]
     this.inRDD_2 = this.in_RDD_idx.map(x => (x._1, x._2._1)).persist(DISK_ONLY)
 
-  //Final result. RDD[Ri, Sj, js]
+    //Final result. RDD[Ri, Sj, js]
     val rdd5 = rdd4.map(x => (x._1, (x._2, x._3)))
-       .join(this.inRDD_2)
-       .map(x => (x._2._1._1, (x._2._2, x._2._1._2)))
-       .join(this.inRDD_2)
-       .map(x => (x._2._1._1.copy(), x._2._2.copy()))
-     //.map(x => (x._2._1._1, x._2._2, x._2._1._2))
+      .join(this.inRDD_2)
+      .map(x => (x._2._1._1, (x._2._2, x._2._1._2)))
+      .join(this.inRDD_2)
+      .map(x => (x._2._1._1.copy(), x._2._2.copy()))
+    //.map(x => (x._2._1._1, x._2._2, x._2._1._2))
 
 
     rdd5

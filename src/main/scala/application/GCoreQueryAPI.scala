@@ -104,7 +104,5 @@ class GCoreQueryAPI(gcoreRunner: GcoreRunner) {
     }
   }
 
-//TODO : get graph subsets and better interfaces to run more complex queries, this is just the starting API
-
 
 }

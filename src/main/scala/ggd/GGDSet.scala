@@ -47,6 +47,15 @@ class GGDSet {
     seq
   }
 
+  def parseGGDJsonStringToGGD(list: String): Seq[GraphGenDep] = {
+    implicit val format = DefaultFormats
+    val json = parse(list)
+    val ggd: List[GGDString] = json.camelizeKeys.extract[List[GGDString]]
+    println("parse GGDJson Api::" + ggd.size)
+    val seq = ggd.map(g => new GraphGenDep(g.sourceGP, g.targetGP, g.sourceCons.map(_.toConstraintClass()), g.targetCons.map(_.toConstraintClass()))).toSeq
+    seq
+  }
+
   def toJsonString(): String = {
     implicit val format = DefaultFormats
     val listGGDs = AllGGDs.map(g => g.GGD())

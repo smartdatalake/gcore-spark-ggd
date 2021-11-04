@@ -31,7 +31,7 @@ case class VernicaJoinAthena(val simThress: Double, sparkSession: SparkSession) 
 
 
   //def vernicaJoin(in_RDD_1: RDD[(String, Array[String])], in_RDD_2: RDD[(String, Array[String])]) = {
-  def vernicaJoin(in_RDD1: RDD[(String, String)], in_RDD2: RDD[(String, String)]) = {
+  def vernicaJoin(in_RDD1: RDD[(String, String)], in_RDD2: RDD[(String, String)], id1: String, id2: String) = {
 
     val in_RDD_1 = in_RDD1.map(x => {
       (x._1, x._2.split(" "))
@@ -191,11 +191,11 @@ case class VernicaJoinAthena(val simThress: Double, sparkSession: SparkSession) 
       .map(x => (x._2._1._1, x._2._2, x._2._1._2))
       .filter(x => x._1 != x._2)
 
-    val inRDD1 = in_RDD1.map(x => x._1).toDF("id1")
-    val inRDD2 = in_RDD2.map(x => x._1).toDF("id2")
-    val resultRDD = rdd5.toDF("id1", "id2", "similarity")
+    val inRDD1 = in_RDD1.map(x => x._1).toDF(id1)
+    val inRDD2 = in_RDD2.map(x => x._1).toDF(id2)
+    val resultRDD = rdd5.toDF(id1, id2, "similarity")
 
-    resultRDD.join(inRDD1, "id1").join(inRDD2, "id2")
+    resultRDD.join(inRDD1, id1).join(inRDD2, id2).drop("similarity").dropDuplicates()
 
     //(rdd5, logArrBuff)
     //rdd5

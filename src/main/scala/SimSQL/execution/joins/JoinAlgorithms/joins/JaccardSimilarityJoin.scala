@@ -35,8 +35,8 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 /**
-  * Created by sunji on 16/9/2.
-  */
+ * Created by sunji on 16/9/2.
+ */
 /**
  * Code and Method for JaccardSimilarity and Edit Similarity from Dima - project from TsinghuaDatabase Group
  * https://github.com/TsinghuaDatabaseGroup/Dima
@@ -183,7 +183,7 @@ case class JaccardSimilarityJoinDima(leftKeys: Expression,
                             ): ((Int, (Long, Long), Int), Array[(Int, (Long, Long), Int)]) = {
     val heapSize = A.length
     if (heapSize < 1) {
-       logDebug(s"heap underflow")
+      logDebug(s"heap underflow")
     }
     val AA = A.clone()
     val min = AA(0)
@@ -220,7 +220,7 @@ case class JaccardSimilarityJoinDima(leftKeys: Expression,
   }
 
   private def buildMinHeap(
-    A: Array[(Int, (Long, Long), Int)]): Array[(Int, (Long, Long), Int)] = {
+                            A: Array[(Int, (Long, Long), Int)]): Array[(Int, (Long, Long), Int)] = {
     var AA = A.clone()
     for (i <- (1 until Math.floor(AA.length / 2).toInt + 1).reverse) {
       AA = minHeapify(AA, i)
@@ -238,17 +238,17 @@ case class JaccardSimilarityJoinDima(leftKeys: Expression,
   }
 
   private def calculateVsl(
-    s: Int,
-    l: Int,
-    indexNum: scala.collection.Map[(Int, Boolean), Long],
-    partitionTable: scala.collection.Map[Int, Int],
-    substring: Array[String],
-    H: Int,
-    minimum: Int,
-    alpha: Double,
-    numPartition: Int,
-    topDegree: Int
-  ): Array[Int] = {
+                            s: Int,
+                            l: Int,
+                            indexNum: scala.collection.Map[(Int, Boolean), Long],
+                            partitionTable: scala.collection.Map[Int, Int],
+                            substring: Array[String],
+                            H: Int,
+                            minimum: Int,
+                            alpha: Double,
+                            numPartition: Int,
+                            topDegree: Int
+                          ): Array[Int] = {
 
     val C0 = {
       for (i <- 1 until H + 1) yield {
@@ -390,15 +390,15 @@ case class JaccardSimilarityJoinDima(leftKeys: Expression,
 
 
   private def partition_r(
-    ss1: String,
-    indexNum: Broadcast[scala.collection.Map[(Int, Boolean), Long]],
-    partitionTable: Broadcast[scala.collection.immutable.Map[Int, Int]],
-    minimum: Int,
-    group: Broadcast[Array[(Int, Int)]],
-    threshold: Double,
-    alpha: Double,
-    partitionNum: Int,
-    topDegree: Int): Array[(Array[(Array[Int], Array[Boolean])],
+                           ss1: String,
+                           indexNum: Broadcast[scala.collection.Map[(Int, Boolean), Long]],
+                           partitionTable: Broadcast[scala.collection.immutable.Map[Int, Int]],
+                           minimum: Int,
+                           group: Broadcast[Array[(Int, Int)]],
+                           threshold: Double,
+                           alpha: Double,
+                           partitionNum: Int,
+                           topDegree: Int): Array[(Array[(Array[Int], Array[Boolean])],
     Array[(Int, Boolean, Array[Boolean], Boolean, Int)])] = {
     var result = ArrayBuffer[(Array[(Array[Int], Array[Boolean])],
       Array[(Int, Boolean, Array[Boolean],
@@ -605,9 +605,9 @@ case class JaccardSimilarityJoinDima(leftKeys: Expression,
   }
 
   private def compareSimilarity(
-    query: ((Int, InternalRow, Array[(Array[Int], Array[Boolean])])
-      , Boolean, Array[Boolean], Boolean, Int),
-    index: ((Int, InternalRow, Array[(Array[Int], Array[Boolean])]), Boolean)): Boolean = {
+                                 query: ((Int, InternalRow, Array[(Array[Int], Array[Boolean])])
+                                   , Boolean, Array[Boolean], Boolean, Int),
+                                 index: ((Int, InternalRow, Array[(Array[Int], Array[Boolean])]), Boolean)): Boolean = {
     logDebug(s"compare { ${query._1._2} } and " +
       s"{ ${index._1._2}}")
     logDebug(s"isDeletionIndex: ${index._2}, isDeletionQuery: ${query._2}, val" +
@@ -629,8 +629,8 @@ case class JaccardSimilarityJoinDima(leftKeys: Expression,
       .reduce(_ + _)
     if (index._2) { //
       if (!query._2 && query._3.length > 0 && query._3(0)) {
-          verify(query._1._3, index._1._3, threshold, pos,
-            query_length, index_length)
+        verify(query._1._3, index._1._3, threshold, pos,
+          query_length, index_length)
       } else {
         false
       }
@@ -675,15 +675,15 @@ case class JaccardSimilarityJoinDima(leftKeys: Expression,
     }).map(row =>
     {
       //try{
-        val key = BindReferences
-          .bindReference(leftKeys, left.output)
-          .eval(row)
-          .asInstanceOf[org.apache.spark.unsafe.types.UTF8String]
-          .toString
-        (key, row.copy())//(Some(key), row.copy())
-     /* }catch{
-        case e: NullPointerException => (None, row.copy())
-      }*/
+      val key = BindReferences
+        .bindReference(leftKeys, left.output)
+        .eval(row)
+        .asInstanceOf[org.apache.spark.unsafe.types.UTF8String]
+        .toString
+      (key, row.copy())//(Some(key), row.copy())
+      /* }catch{
+         case e: NullPointerException => (None, row.copy())
+       }*/
     })
 
     val right_rdd = right.execute().filter(row =>{
@@ -699,16 +699,16 @@ case class JaccardSimilarityJoinDima(leftKeys: Expression,
       }
     }).map(row =>
     {
-     // try{
-        val key = BindReferences
-          .bindReference(rightKeys, right.output)
-          .eval(row)
-          .asInstanceOf[org.apache.spark.unsafe.types.UTF8String]
-          .toString
+      // try{
+      val key = BindReferences
+        .bindReference(rightKeys, right.output)
+        .eval(row)
+        .asInstanceOf[org.apache.spark.unsafe.types.UTF8String]
+        .toString
       (key, row.copy())//(Some(key), row.copy())
-     /* }catch{
-        case e: NullPointerException => (None, row.copy())
-      }*/
+      /* }catch{
+         case e: NullPointerException => (None, row.copy())
+       }*/
 
     })
 
@@ -798,12 +798,12 @@ case class JaccardSimilarityJoinDima(leftKeys: Expression,
             x._2._1._2,
             createInverse(x._2._1._1, multiGroup, threshold)
               .map(x => {
-              if (x._1.length > 0) {
-                (x._1.split(splitToken).map(s => s.hashCode), Array[Boolean]())
-              } else {
-                (Array[Int](), Array[Boolean]())
-              }
-            })),
+                if (x._1.length > 0) {
+                  (x._1.split(splitToken).map(s => s.hashCode), Array[Boolean]())
+                } else {
+                  (Array[Int](), Array[Boolean]())
+                }
+              })),
             x._2._2)))).iterator
     }).persist(StorageLevel.MEMORY_AND_DISK_SER)
 

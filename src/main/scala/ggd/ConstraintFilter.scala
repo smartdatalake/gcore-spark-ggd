@@ -17,14 +17,35 @@ case class ConstraintFilter(sourceCons: List[Constraint]) extends FilterFunction
     var distResult: Double = 0
     //get attribute values from each df
     val dist: distanceFunctions = new distanceFunctions;
-    val firstValue: String = row1.getAs(cons.var1+"$"+cons.attr1).toString()//row1.getAs[String](cons.var1+"$"+cons.attr1)
-    var secondValue: String = ""
-    if(cons.var2 == "") secondValue = cons.attr2
-    else secondValue = row1.getAs(cons.var2+"$"+cons.attr2).toString//row1.getAs[String](cons.var2+"$"+cons.attr2)
+
     cons.distance match {
-      case "edit" => distResult = dist.editDistance(firstValue,secondValue) //value.variable.attr1
-      case "euclidean" => distResult = dist.EuclideanDistance(dist.getArray(firstValue),dist.getArray(secondValue))
-      case "diff" => distResult = dist.Diff(dist.getArray(firstValue),dist.getArray(secondValue))
+      case "edit" => {
+        val firstValue: String = row1.getAs(cons.var1+"$"+cons.attr1).toString()//row1.getAs[String](cons.var1+"$"+cons.attr1)
+        var secondValue: String = ""
+        if(cons.var2 == "") secondValue = cons.attr2
+        else secondValue = row1.getAs(cons.var2+"$"+cons.attr2).toString//row1.getAs[String](cons.var2+"$"+cons.attr2)
+        distResult = dist.editDistance(firstValue,secondValue)
+      } //value.variable.attr1
+      case "euclidean" => {
+        val firstValue: String = row1.getAs(cons.var1+"$"+cons.attr1).toString()//row1.getAs[String](cons.var1+"$"+cons.attr1)
+        var secondValue: String = ""
+        if(cons.var2 == "") secondValue = cons.attr2
+        else secondValue = row1.getAs(cons.var2+"$"+cons.attr2).toString//row1.getAs[String](cons.var2+"$"+cons.attr2)
+        distResult = dist.EuclideanDistance(dist.getArray(firstValue),dist.getArray(secondValue))
+      }
+      case "diff" => {
+        try{
+          val firstValue: String = row1.getAs(cons.var1+"$"+cons.attr1).toString()//row1.getAs[String](cons.var1+"$"+cons.attr1)
+          var secondValue: String = ""
+          if(cons.var2 == "") secondValue = cons.attr2
+          else secondValue = row1.getAs(cons.var2+"$"+cons.attr2).toString//row1.getAs[String](cons.var2+"$"+cons.attr2)
+          distResult = dist.Diff(dist.getArray(firstValue),dist.getArray(secondValue))
+        }catch {
+          case(e: NullPointerException) => {
+            return false
+          }
+        }
+      }
       case "equal" =>  if(row1.getAs(cons.var1+"$id").toString == row1.getAs(cons.var2+"$id").toString) return true else return false
       //if(row1.getAs[String](cons.var1+"$id") == row1.getAs[String](cons.var2+"$id")) return true else return false
       case "different" => if(row1.getAs(cons.var1+"$id").toString == row1.getAs(cons.var2+"$id").toString) return false else return true

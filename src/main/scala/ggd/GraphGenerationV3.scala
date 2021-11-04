@@ -59,6 +59,7 @@ case class GraphGenerationV3(gcoreRunner: GcoreRunner) {
     } //returns true if satisfiable/ false if not
   }
 
+
   // def constraintScoreTarget(row: Row, ggd : GraphGenDep) : Double = {
   def constraintScoreTarget(row: Row): Double = {
     val ggd = dependency
@@ -79,13 +80,11 @@ case class GraphGenerationV3(gcoreRunner: GcoreRunner) {
     val targetVariables: List[String] = ggd.targetGP.head.vertices.map(_.variable) ++ ggd.targetGP.head.edges.map(_.variable)
     val commonVar: List[String] = GGDtoGCoreParser.commonVariables(sourceVariables, targetVariables)
     violatedDf.show(10)
-    violatedDf//.cache()
     val commonVarIds: List[String] = commonVar.map(x => x + "$id")
     if (!commonVar.isEmpty) {
       var queryResult = gcoreRunner.sparkSession.emptyDataFrame
       var violatedResult = gcoreRunner.sparkSession.emptyDataFrame
-      if(ggd.sourceGP.map(x => x.name).distinct.size > 1){
-        //not in the same graph - split in different
+      if(ggd.sourceGP.map(x => x.name).distinct.size > 1 || (ggd.sourceGP.size > 1 && !gcoreRunner.catalog.graph(ggd.sourceGP.head.name).edgeSchema.labels.contains(ggd.targetGP.head.name))){
         val matchOptionalClause = GGDtoGCoreParser.partialPattern(ggd.targetGP.head, commonVar)
         val queries = matchOptionalClause.matchClause.split(",").map( x =>{
           "SELECT * MATCH " + x + " OPTIONAL " + matchOptionalClause.optionalClause
@@ -106,7 +105,8 @@ case class GraphGenerationV3(gcoreRunner: GcoreRunner) {
           val commonIds = results.apply(i).asInstanceOf[DataFrame].columns.map(e => e.split('$').apply(0)).distinct.filter(p => p != "sid").map(x => (x + "$id"))
           violatedResult = violatedResult.join(results.apply(i).asInstanceOf[DataFrame], commonIds)
         }
-        violatedResult = DataFrameUtils.removeDuplicateColumns(violatedResult)//.cache()
+        violatedResult = DataFrameUtils.removeDuplicateColumns(violatedResult).cache()
+        //println(violatedResult.count())
       }else{
         val matchOptionalClause = GGDtoGCoreParser.partialPattern(ggd.targetGP.head, commonVar)
         var query: String = "SELECT * MATCH " + matchOptionalClause.matchClause + " OPTIONAL " + matchOptionalClause.optionalClause
@@ -123,8 +123,6 @@ case class GraphGenerationV3(gcoreRunner: GcoreRunner) {
         var consQuery: String = ""
         violatedResult = DataFrameUtils.removeDuplicateColumns(violatedDf.join(queryResult, commonVarIds, "Inner"))//.cache()
       }
-      violatedResult.show(10)
-      println(violatedResult.count())
       if (ggd.targetCons.nonEmpty) {
         val violatedResultScore = violatedResult.withColumn("ConstraintScore", constraintUdf(struct(violatedResult.columns.map(col): _*)))
         //val groupedData = violatedResultScore.groupBy(commonVar.head, commonVar.tail: _*).max("ConstraintScore")
@@ -141,10 +139,9 @@ case class GraphGenerationV3(gcoreRunner: GcoreRunner) {
         gcoreRunner.catalog.registerGraph(resultGraph)
         return resultGraph
       }
-    } else { //apenas partial pattern
+    } else {
       //run construct query matching anything
       val fullPatternConstruct: selectMatch = GGDtoGCoreParser.parseGCoreSelectMatch(ggd.targetGP)
-      //TODO - FIX THIS WITHOUT GCORE QUERY
       val resultGraph: SparkGraph = gcoreRunner.compiler.compilePropertyGraph("CONSTRUCT" + fullPatternConstruct.matchClause + "MATCH (c:Person) WHERE c.id=101 ON people_graph").asInstanceOf[SparkGraph]
       gcoreRunner.catalog.registerGraph(resultGraph)
       return resultGraph
@@ -170,8 +167,6 @@ case class GraphGenerationV3(gcoreRunner: GcoreRunner) {
     gcoreRunner.catalog.registerGraph(resultGraph)
     //save to proteus --> use the generated information log to check which files should be saved to proteus
     val tablesGenerated = generationInformation.map(_.name)
-    //val generatedVertexTables = resultGraph.vertexData.map(_.name.value).intersect(tablesGenerated)
-    //val generatedEdgeTables = resultGraph.edgeData.map(_.name.value).intersect(tablesGenerated)
     if(!path.isEmpty){
       //save as json to hdfs or to path selected
       val tablesData = resultGraph.vertexData.filter(p => tablesGenerated.contains(p.name.value))
@@ -179,23 +174,16 @@ case class GraphGenerationV3(gcoreRunner: GcoreRunner) {
       val name = ggd.targetGP.head.name//target graph name --> resultGraph is intermediate data
       if(!tablesData.isEmpty){
         tablesData.foreach(x => {
-          //uncomment here for final version
           saveFileRAW(path, x.name.value, x.data.asInstanceOf[DataFrame], x.graphName, rawSave)
-          //insert here create table/view for Proteus/RAW
-          //query to create view
           val rawQuery = getQuerySaveType(rawSave, path, x.name.value)
           rawUtils.createViews(rawURI, x.name.value, rawQuery, rawToken)
         })
       }
       if(!edgesData.isEmpty){
         edgesData.foreach(x => {
-          //uncomment here for final version
-          //x.data.asInstanceOf[DataFrame].repartition(1).write.json(path+"/" + name + x.name.value + ".json")
           saveFileRAW(path, x.name.value, x.data.asInstanceOf[DataFrame], x.graphName, rawSave)
-          //insert here create table/view for Proteus/RAW
           //query to create view
           val rawQuery = getQuerySaveType(rawSave, path, x.name.value)
-          //val rawQuery = "read_json(\"file:/" + path+"/" + x.name.value + ".json" + "\")"
           rawUtils.createViews(rawURI, x.name.value, rawQuery, rawToken)
         })
       }
@@ -255,7 +243,6 @@ case class GraphGenerationV3(gcoreRunner: GcoreRunner) {
           generatedVertices += generatedVertexTable
         }catch {
           case e: Exception => {
-            //df = df.withColumn(vertex.variable+"$id", lit(vertex.variable+randomId(6).toInt))//generates only one or one per project? -> if one per project monotonically increasing
             println("df size:" + df.count())
             df = df.withColumn(vertex.variable+"$id", monotonically_increasing_id())//generates only one or one per project? -> if one per project monotonically increasing
             df.show(10)
@@ -323,4 +310,6 @@ case class GraphGenerationV3(gcoreRunner: GcoreRunner) {
 
 }
 
-case class generatedInfo(name: String, number: Long)
+case class generatedInfo(name: String, number: Long, ggd: String = "")
+
+case class generatedInfoGraph(name: String, number: Long, ggd:String = "", graphName: String, id: Int)
