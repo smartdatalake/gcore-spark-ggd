@@ -1,10 +1,14 @@
 package application
 
+import algebra.expressions.Label
 import ggd.GcoreRunner
 import ggd.utils.{DataFrameUtils, GGDtoGCoreParser}
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.catalog.Table
-import schema.PathPropertyGraph
+import org.apache.spark.sql.functions.col
+import schema.EntitySchema.LabelRestrictionMap
+import schema.{PathPropertyGraph, SchemaMap, Table}
+import spark.SparkGraph
 
 //class only for querying G-Core
 class GCoreQueryAPI(gcoreRunner: GcoreRunner) {
@@ -101,6 +105,42 @@ class GCoreQueryAPI(gcoreRunner: GcoreRunner) {
       runSelectQuery("SELECT * MATCH (a:" + nodesLabel + ") ON " + graphName)
     }else {
       runSelectQuery("SELECT * MATCH (a:" + nodesLabel + ") ON " + graphName).limit(limit)
+    }
+  }
+
+
+  def constructQueryLabel(label1: String, limit: Int = -1, graph1: String): PathPropertyGraph = {
+    val graph = "CordWiki"
+    val label = "similar_names"
+    val originalGraph = gcoreRunner.catalog.graph(graph.trim)//.graph(graph)
+    println(gcoreRunner.catalog.allGraphsKeys.mkString(","))
+    println(graph)
+    println(originalGraph.schemaString)
+    val restriction = originalGraph.edgeRestrictions.get(Label(label)).get
+    val labelTable =
+      if(limit != -1){
+        originalGraph.edgeData.filter(_.name.value == label).head.data.asInstanceOf[DataFrame].where(col("fromId").notEqual(col("toId"))).limit(limit)
+      }else originalGraph.edgeData.filter(_.name.value == label).head.data.asInstanceOf[DataFrame]
+    val sourceIds = labelTable.select("fromId")
+    val targetIds = labelTable.select("toId")
+    val sourceTable_1 = originalGraph.vertexData.filter(_.name.value == restriction._1.value).head.data.asInstanceOf[DataFrame]
+    val targetTable_1 = originalGraph.vertexData.filter(_.name.value == restriction._2.value).head.data.asInstanceOf[DataFrame]
+    val sourceTable = sourceTable_1.join(sourceIds, sourceTable_1.col("id")=== sourceIds.col("fromId"), "inner").dropDuplicates("id")
+    val targetTable = targetTable_1.join(targetIds, targetTable_1.col("id")=== targetIds.col("toId"), "inner").dropDuplicates("id")
+    targetTable.show(10)
+    sourceTable.show(10)
+    new SparkGraph {
+      override var graphName: String = "result"
+
+      override def edgeRestrictions: LabelRestrictionMap = SchemaMap(Map(Label(label) -> restriction))
+
+      override def storedPathRestrictions: LabelRestrictionMap = SchemaMap.empty
+
+      override def vertexData: Seq[schema.Table[DataFrame]] = Seq(Table(restriction._1, sourceTable), Table(restriction._2,targetTable))
+
+      override def edgeData: Seq[schema.Table[DataFrame]] = Seq(Table(Label(label), labelTable))
+
+      override def pathData: Seq[schema.Table[DataFrame]] = Seq.empty
     }
   }
 

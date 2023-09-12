@@ -3,7 +3,6 @@ package application
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
-import application.WebServer.{configurationFile, visCommands}
 import compiler.{CompileContext, Compiler, GcoreCompiler}
 import ggd.{ConfigurationRunner, ERCommand, GcoreRunner, Runner}
 import org.apache.log4j.{Level, Logger}
@@ -27,7 +26,7 @@ import scala.concurrent.Future
 
 object WebServer {
 
-  def loadDatabase(gcoreRunner: GcoreRunner, folder:String):Unit=
+  def loadDatabase(gcoreRunner: GcoreRunner, folder:String, multiline: Boolean = false):Unit=
   {
     var directory = new Directory
     gcoreRunner.catalog.registerGraph(DummyGraph(gcoreRunner.sparkSession))
@@ -67,13 +66,15 @@ object WebServer {
 
     val port = args.apply(0)
     val databaseString = args.apply(1)
-    loadDatabase(gcoreRunner, databaseString)
+    loadDatabase(gcoreRunner, databaseString, true)
+
+
     if(args.length > 2){
       val configFile = Source.fromFile(args(0)).mkString
       val json = parse(configFile)
       configurationFile = json.camelizeKeys.extract[ConfigurationRunner]
     }
-    val erRoutes: EntResRoutes = new EntResRoutes(erCommands,gcoreApi, server) //define future commands in erRoutes
+    val erRoutes: GGDProfilingRoutes = new GGDProfilingRoutes(erCommands,gcoreApi, server, databaseString) //define future commands in erRoutes
     //val erRoutes: EntResRoutes = new EntResRoutes(erCommands,gcoreApi, visCommands, server, configurationFile) //define future commands in erRoutes
     val bindingFuture = Http().bindAndHandle(erRoutes.route, "0.0.0.0", port.toInt) //interface = localhost - ip address
     println(s"Server online at http://0.0.0.0:"+port+"/\nPress Ctrl+C to stop...")

@@ -3,12 +3,14 @@ package ggd
 import java.io.File
 import java.nio.file.Paths
 
+import SimSQL.SimilarityAPI
 import algebra.expressions.Label
 import org.apache.spark.sql.DataFrame
 import schema.{PathPropertyGraph, SchemaMap, Table}
 import spark._
 import ggd._
 import ggd.utils._
+import org.apache.spark.sql.functions.col
 import schema.EntitySchema.LabelRestrictionMap
 
 import scala.collection.mutable.ArrayBuffer
@@ -181,6 +183,25 @@ class ERCommand(gcoreRunner: GcoreRunner){
     violatedGGDs
   }
 
+  def runSimJoin(label1: String, label2: String, attr1: String, attr2:String, threshold: Double, graphname: String): DataFrame = {
+    val graph = this.getGcore().catalog.graph(graphname)
+    val df1 = if(graph.vertexSchema.labels.contains(Label(label1))){
+      graph.vertexData.filter(_.name.value.equalsIgnoreCase(label1)).head.data.asInstanceOf[DataFrame].select(col("id").as("id1"), col(attr1))
+    }else{
+      graph.edgeData.filter(_.name.value.equalsIgnoreCase(label1)).head.data.asInstanceOf[DataFrame].select(col("id").as("id1"), col(attr1))
+    }
+    val df2 = if(graph.vertexSchema.labels.contains(Label(label2))){
+      graph.vertexData.filter(_.name.value.equalsIgnoreCase(label2)).head.data.asInstanceOf[DataFrame].select(col("id").as("id2"), col(attr2))
+    }else{
+      graph.edgeData.filter(_.name.value.equalsIgnoreCase(label2)).head.data.asInstanceOf[DataFrame].select(col("id").as("id2"), col(attr2))
+    }
+    val simjoiAPI = new SimilarityAPI(gcoreRunner)
+    var result: DataFrame = gcoreRunner.sparkSession.emptyDataFrame
+    result = simjoiAPI.SimJoin(df1, df2, attr1, attr2, "editsimilarity", threshold, "<")
+    result.show(20)
+    result
+  }
+
   def loadGraph(configPath: String) : Unit = {
     var sparkCatalog : SparkCatalog = SparkCatalog(gcoreRunner.sparkSession)
     val graphSource = new GraphSource(gcoreRunner.sparkSession) {
@@ -241,6 +262,55 @@ class ERCommand(gcoreRunner: GcoreRunner){
     resultInfo = ggdValV2.genInfo
     gcoreRunner.catalog.registerGraph(generatedGraphGGD)
     generatedGraphGGD
+  }
+
+  def savePartOfGraph(saveType: String, path: String, graphPart: String, info: String, graphName: String, queryMode: String): Unit ={
+    graphPart match {
+      case "vertex" => {
+        //save vertex
+        val vertexData = gcoreRunner.catalog.graph(graphName).vertexData.asInstanceOf[Seq[Table[DataFrame]]]
+          .filter(_.name.value == info).head.data
+        saveFile(path, info, vertexData, saveType)
+      }
+      case "edge" => {
+        val edgeData = gcoreRunner.catalog.graph(graphName).edgeData.asInstanceOf[Seq[Table[DataFrame]]]
+          .filter(_.name.value == info).head.data
+        saveFile(path, info, edgeData, saveType)
+      }
+      case "query" => {
+        val queryData = if(queryMode == "jdbc"){
+          runSelectQueryJDBC(info)
+        }else runSelectQuery(info)
+        saveFile(path, info, queryData, saveType)
+      }
+      case "config" => {
+        //save config json as json file
+        val save = new SaveGraph()
+        save.saveConfigFileOnly(gcoreRunner.catalog.graph(graphName), path)
+      }
+      case _ => println("Mode of saving not supported, choose one of the three options: vertex, edge, query or config")
+    }
+  }
+
+  def saveFile(path: String, labelName: String, data: DataFrame, saveType: String): Unit = {
+    //it will always save to an hdfs so RAW can access it, be careful with the path value
+    val pathSave = saveType match {
+      case "s3" => "s3://" + path + "/" + labelName
+      case "hdfs" => "hdfs://" + path + "/" + labelName
+      case "file" => path+"/" + labelName
+    }
+    val count = data.count()
+    data.toJSON
+      //.coalesce(1) // make sure it is only one partition and in consequence one output file
+      .rdd
+      .zipWithIndex()
+      .map { case(json, idx) =>
+        if(idx == 0) "[" + json + ","
+        else if(idx == count-1) json + "]"
+        else json + ","
+      }
+      .saveAsTextFile(pathSave)
+    //save as a correct json file
   }
 
 

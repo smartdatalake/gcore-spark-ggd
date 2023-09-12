@@ -37,6 +37,7 @@ class GraphGenDep {
     val targetFile = Source.fromFile(ggdFile+"target.json").mkString
     val constraintFile = Source.fromFile(ggdFile+"constraint.json").mkString
     val constraintFileTarget = Source.fromFile(ggdFile+"constraintTarget.json").mkString
+    //print(sourceFile)
     name = ggdFile.getFileName.toString
     sourceGP = loadGraphJSON(sourceFile)
     targetGP = loadGraphJSON(targetFile)
@@ -52,7 +53,7 @@ class GraphGenDep {
 
   def loadGraphGenDepJSON(str: String): Unit = {
     val json = parse(str)
-    val ggd: GGD = json.camelizeKeys.extract[GGD]
+    val ggd: GGD = json.camelizeKeys.extract[GGD] //case class for GGDs -> TODO:change to just one class
     sourceGP = ggd.sourceGP
     sourceCons = ggd.sourceCons
     targetGP = ggd.targetGP
@@ -108,6 +109,19 @@ class GraphGenDep {
     new GGD(sourceGP, sourceCons, targetGP, targetCons)
   }
 
+  //always assuming that both source and target are from the same graph dataset
+  def unionSourceTarget() : GraphPattern = {
+    val sourceVertices = if(this.sourceGP.size > 1){
+      this.sourceGP.head.vertices.union(this.sourceGP(1).vertices)
+    }else this.sourceGP.head.vertices
+    val allVerticesOfGraphPattern = this.targetGP.head.vertices.union(sourceVertices)
+    val edgesSource = if(this.sourceGP.size > 1){
+      this.sourceGP.head.edges.union(this.sourceGP(1).edges)
+    }else this.sourceGP.head.edges
+    val allEdgesOfGraphPattern = this.targetGP.head.edges.union(edgesSource)
+    new GraphPattern(this.targetGP.head.name, allVerticesOfGraphPattern.distinct, allEdgesOfGraphPattern.distinct)
+  }
+
 }
 
 case class GGDString(sourceGP: List[GraphPattern],
@@ -130,9 +144,17 @@ case class GraphPattern(
 
                        ){
 
+  edges.foreach(e => {
+    val FromLabel: String = variableLabel(e.fromVariable)
+    val ToLabel: String = variableLabel(e.toVariable)
+    e.fromLabel = FromLabel
+    e.toLabel = ToLabel
+  })
+
+
   def parseToGCoreConstruct() : gcoreConstructQuery = {
-    if(edges.isEmpty) return gcoreConstructQuery("(" + vertices.head.variable + ":" + vertices.head.label + ")", name)
-    else return gcoreConstructQuery(parsePattern(), name)
+    if(edges.isEmpty) return gcoreConstructQuery("", "(" + vertices.head.variable + ":" + vertices.head.label + ")", name)
+    else return gcoreConstructQuery(parsePatternConstructOnly(),parsePattern(), name)
   }
 
   def parseToGCoreSelect() : gcoreQuery = {
@@ -236,6 +258,45 @@ case class GraphPattern(
     return patternEdges
   }
 
+  def parsePatternConstructOnly(): String = {
+    val allVertices: ArrayBuffer[String] = new ArrayBuffer[String]()
+    var patternEdges : String = ""
+    if(edges.size == 1){
+      val e = edges.head
+      val FromLabel: String = variableLabel(e.fromVariable)
+      val ToLabel: String = variableLabel(e.toVariable)
+      e.fromLabel = FromLabel
+      e.toLabel = ToLabel
+      patternEdges = "(" + e.fromVariable + ")-[" + e.variable + "]->(" + e.toVariable + ")";
+      //}else if (edges.size == 2){
+      if(!allVertices.contains(e.fromVariable)) allVertices += e.fromVariable
+      if(!allVertices.contains(e.toVariable)) allVertices += e.toVariable
+    }else{
+      for(e <- edges){
+        val FromLabel: String = variableLabel(e.fromVariable)
+        val ToLabel: String = variableLabel(e.toVariable)
+        e.fromLabel = FromLabel
+        e.toLabel = ToLabel
+        if(patternEdges == "")
+          patternEdges = "(" + e.fromVariable + ")-[" + e.variable +  "]->(" + e.toVariable + ")"
+        else{
+          patternEdges += ", (" + e.fromVariable + ")-[" + e.variable + "]->(" + e.toVariable + ")"
+        }
+        if(!allVertices.contains(e.fromVariable)) allVertices += e.fromVariable
+        if(!allVertices.contains(e.toVariable)) allVertices += e.toVariable
+      }
+    }
+    val verticesVariables = vertices.map(x=> x.variable)
+    val alone = verticesVariables.diff(allVertices)
+    if(alone.isEmpty) return patternEdges
+    else{
+      for(v <- alone){
+        patternEdges += (", (" + v + ")")
+      }
+    }
+    return patternEdges
+  }
+
   def variableLabel(str: String): String = {
     for(v <- vertices){
       if(v.variable == str){
@@ -290,6 +351,7 @@ case class gcoreQuery(
                      )
 
 case class gcoreConstructQuery(
+                                patternConstruct: String = "",
                                 pattern: String,
                                 graphName: String
                               )

@@ -44,16 +44,17 @@ abstract class GraphSource(spark: SparkSession) {
     loadGraph(GraphSource parseJsonConfig graphConfigPath)
 
   /** Loads a [[SparkGraph]] from a [[GraphJsonConfig]] object. */
-  def loadGraph(graphConfig: GraphJsonConfig): SparkGraph =
+  def loadGraph(graphConfig: GraphJsonConfig): SparkGraph = {
+    val multiline: Boolean = true;
     new SparkGraph {
 
       override var graphName: String = graphConfig.graphName
 
-      override def pathData: Seq[Table[DataFrame]] = loadData(graphConfig.pathFiles)
+      override def pathData: Seq[Table[DataFrame]] = loadData(graphConfig.pathFiles, multiline)
 
-      override def vertexData: Seq[Table[DataFrame]] = loadData(graphConfig.vertexFiles)
+      override def vertexData: Seq[Table[DataFrame]] = loadData(graphConfig.vertexFiles, multiline)
 
-      override def edgeData: Seq[Table[DataFrame]] = loadData(graphConfig.edgeFiles)
+      override def edgeData: Seq[Table[DataFrame]] = loadData(graphConfig.edgeFiles, multiline)
 
       override def edgeRestrictions: LabelRestrictionMap =
         buildRestrictions(graphConfig.edgeRestrictions)
@@ -62,55 +63,64 @@ abstract class GraphSource(spark: SparkSession) {
         buildRestrictions(graphConfig.pathRestrictions)
 
     }
+  }
 
-    /** Loads a [[SparkGraph]] from a single JSON file containing all data. */
-    def loadGraph(graphFullFile: File): SparkGraph ={
-      val json = GraphSource parseFullGraphJson graphFullFile
-      var vertexes = Seq[Any]()
-      json.vertexes.foreach(m => m.foreach{
-        case (vertexLabel:String, vertexData:List[Map[String,String]]) =>
-          val rows = vertexData.map(m => Row(m.values.toSeq :_*))
-          val header = vertexData.head.keys.toList
-          val schema = StructType(header.map(fieldName => StructField(fieldName, StringType, true)))
-          val dataRDD = spark.sparkContext.parallelize(rows)
-          val df = spark.createDataFrame(dataRDD, schema)
+  /** Loads a [[SparkGraph]] from a single JSON file containing all data. */
+  def loadGraph(graphFullFile: File): SparkGraph ={
+    val json = GraphSource parseFullGraphJson graphFullFile
+    var vertexes = Seq[Any]()
+    json.vertexes.foreach(m => m.foreach{
+      case (vertexLabel:String, vertexData:List[Map[String,String]]) =>
+        val rows = vertexData.map(m => Row(m.values.toSeq :_*))
+        val header = vertexData.head.keys.toList
+        val schema = StructType(header.map(fieldName => StructField(fieldName, StringType, true)))
+        val dataRDD = spark.sparkContext.parallelize(rows)
+        val df = spark.createDataFrame(dataRDD, schema)
 
-          val table = (Table(Label(vertexLabel), df.cache()))
-          vertexes = vertexes :+ table
-      })
-      var edges = Seq[Any]()
-      json.edges.foreach(m => m.foreach{
-        case (edgeLabel:String, edgeData:List[Map[String,String]]) =>
-          val rows = edgeData.map(m => Row(m.values.toSeq :_*))
-          val header = edgeData.head.keys.toList
-          val schema = StructType(header.map(fieldName => StructField(fieldName, StringType, true)))
-          val dataRDD = spark.sparkContext.parallelize(rows)
-          val df = spark.createDataFrame(dataRDD, schema)
+        val table = (Table(Label(vertexLabel), df.cache()))
+        vertexes = vertexes :+ table
+    })
+    var edges = Seq[Any]()
+    json.edges.foreach(m => m.foreach{
+      case (edgeLabel:String, edgeData:List[Map[String,String]]) =>
+        val rows = edgeData.map(m => Row(m.values.toSeq :_*))
+        val header = edgeData.head.keys.toList
+        val schema = StructType(header.map(fieldName => StructField(fieldName, StringType, true)))
+        val dataRDD = spark.sparkContext.parallelize(rows)
+        val df = spark.createDataFrame(dataRDD, schema)
 
-          val table = (Table(Label(edgeLabel), df.cache()))
-          edges = edges :+ table
-      })
-      new SparkGraph{
-        override var graphName: String = json.graphName
+        val table = (Table(Label(edgeLabel), df.cache()))
+        edges = edges :+ table
+    })
+    new SparkGraph{
+      override var graphName: String = json.graphName
 
-        override def vertexData: Seq[Table[DataFrame]] = vertexes.asInstanceOf[Seq[Table[DataFrame]]]
+      override def vertexData: Seq[Table[DataFrame]] = vertexes.asInstanceOf[Seq[Table[DataFrame]]]
 
-        override def edgeData: Seq[Table[DataFrame]] = edges.asInstanceOf[Seq[Table[DataFrame]]]
+      override def edgeData: Seq[Table[DataFrame]] = edges.asInstanceOf[Seq[Table[DataFrame]]]
 
-        override def pathData: Seq[Table[DataFrame]] = Seq.empty
+      override def pathData: Seq[Table[DataFrame]] = Seq.empty
 
-        override def edgeRestrictions: LabelRestrictionMap = buildRestrictions(json.edgeRestrictions)
+      override def edgeRestrictions: LabelRestrictionMap = buildRestrictions(json.edgeRestrictions)
 
-        override def storedPathRestrictions: LabelRestrictionMap = buildRestrictions(json.pathRestrictions)
-      }
+      override def storedPathRestrictions: LabelRestrictionMap = buildRestrictions(json.pathRestrictions)
     }
+  }
 
-  private def loadData(dataFiles: Seq[Path]): Seq[Table[DataFrame]] =
-    dataFiles.map(
+  private def loadData(dataFiles: Seq[Path], multiline: Boolean = false): Seq[Table[DataFrame]] = {
+    if(multiline){
+      dataFiles.map(
+        filePath =>
+          Table(
+            name = Label(filePath.getFileName.toString),
+            data = spark.sqlContext.read.option("multiline", multiline).json(filePath.toString + ".json").cache()))
+    }
+    else dataFiles.map(
       filePath =>
         Table(
           name = Label(filePath.getFileName.toString),
           data = spark.sqlContext.read.json(filePath.toString).cache()))
+  }
 
   def buildRestrictions(restrictions: Seq[ConnectionRestriction]): LabelRestrictionMap = {
     restrictions.foldLeft(SchemaMap.empty[Label, (Label, Label)]) {
@@ -129,9 +139,9 @@ object GraphSource {
   implicit val format: DefaultFormats.type = DefaultFormats
 
   /**
-    * Creates a [[GraphJsonConfig]] object by deserializing the config JSON stored at the given
-    * path.
-    */
+   * Creates a [[GraphJsonConfig]] object by deserializing the config JSON stored at the given
+   * path.
+   */
   def parseJsonConfig(configPath: Path): GraphJsonConfig = {
     val configs = Source.fromFile(configPath.toString).mkString
     val json = parse(configs)
@@ -139,8 +149,8 @@ object GraphSource {
   }
 
   /**
-    * Creates a [[SparkGraph]] from a JSON file fully containing it
-    */
+   * Creates a [[SparkGraph]] from a JSON file fully containing it
+   */
   def parseFullGraphJson(file: File): FullGraphJson = {
     parse(Source.fromFile(file).mkString)
       .camelizeKeys

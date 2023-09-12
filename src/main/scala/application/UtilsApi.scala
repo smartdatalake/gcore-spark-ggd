@@ -1,8 +1,7 @@
 package application
 
 import algebra.expressions
-import algebra.expressions.Label
-import ggd.discovery.clustering.DistanceMap
+import algebra.expressions.{Label, PropertyKey}
 import ggd.{GGD, GraphPattern}
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.catalyst.expressions.Hex
@@ -10,7 +9,7 @@ import org.json4s.DefaultFormats
 import org.json4s.jackson.JsonMethods.parse
 import org.json4s.jackson.Serialization
 import schema.EntitySchema.LabelRestrictionMap
-import schema.{PathPropertyGraph, SchemaMap, Table}
+import schema.{EntitySchema, PathPropertyGraph, SchemaMap, Table}
 import spark.{GraphJsonConfig, SparkGraph}
 
 import scala.collection.mutable.ArrayBuffer
@@ -73,6 +72,11 @@ object UtilsApi {
     val nodes = Serialization.write(flatNodes)
     val edges = Serialization.write(flatEdges)
     return GraphNetworkx(nodes,edges)
+  }
+
+  def getDataType(schema: EntitySchema, label: Label, key: PropertyKey): String = {
+    val gcoreType = schema.labelSchema.get(label).get.get(key).get.name
+    gcoreType.replaceAll("Gcore", "").replace("$", "")
   }
 
   def toJsonSchema(graph: PathPropertyGraph) : GraphNetworkx = {
