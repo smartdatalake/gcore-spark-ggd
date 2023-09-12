@@ -32,7 +32,39 @@ The Vernica Similarity Join algorithm for Jaccard Similarity Join was implemente
 For more information check our manual pdf file (sHINERmanual.pdf) or for the source code check the SimSQL package in our project.
 
 
-## To build and run
+## To build and run (ProGGD version)
+
+First build the ggdminer project from https://github.com/laricsh/ggdminer
+And include the ggdminer jar it in your local sHINER project. Or, install the local jar in your local mvn repository by using the following command:
+
+```bash
+mvn install:install-file -Dfile=/path/lib/ggdminer.jar -DgroupId=tue.nl -DartifactId=ggminer -Dversion=1.0 -Dpackaging=jar
+```
+
+If you are installing the jar into your local mvn, add the following line to the sHINER pom.xml:
+
+```bash
+    <repositories>
+        <repository>
+            <id>local-repo</id>
+            <name>Local-Repo</name>
+            <url>/your_mvn_path/.m2/repository/</url>
+        </repository>
+    </repositories>
+
+```
+
+And 
+
+```bash
+    <dependency>
+        <groupId>tue.nl</groupId>
+        <artifactId>ggdminer</artifactId>
+        <version>1.0</version>
+    </dependency>
+```
+
+
 The GGDs were built as an extension to the G-Core project, the instructions to build and run this project are the same as in the G-Core interpreter.
 The project will build successfully under Java 8. Spark 2.4.5 is needed to run
 the application. Spark can be downloaded from
